@@ -51,21 +51,18 @@
   <!-- FEED -->
   <main class="feed">
     <div class="grid" id="stories-grid">
-      <div class="grid-loading">
-        <div class="spinner"></div>
-        <p>Loading latest IOL stories…</p>
-      </div>
+      <div class="grid-loading"><div class="spinner"></div><p>Loading latest IOL stories…</p></div>
     </div>
     <div class="load-more-row" id="load-more-row" style="display:none">
       <button class="load-more-btn" id="load-more-btn">Load more</button>
     </div>
   </main>
 
-  <!-- ═══════════════ CARD DESIGNER OVERLAY ═══════════════ -->
+  <!-- ═══ CARD DESIGNER OVERLAY ═══ -->
   <div class="designer" id="designer">
     <div class="designer-inner">
 
-      <!-- Designer nav bar -->
+      <!-- Nav bar -->
       <div class="dnav">
         <button class="back-btn" id="back-btn">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M11 4L6 9L11 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -73,45 +70,59 @@
         </button>
         <div class="dnav-title" id="dnav-title"></div>
         <div class="dnav-actions">
-          <button class="btn-download" id="btn-dl">⬇ Download Card</button>
-          <button class="btn-download btn-dl-all" id="btn-dl-all" style="display:none">⬇ All Slides</button>
+          <button class="btn-dl" id="btn-dl-sq">⬇ Square</button>
+          <button class="btn-dl" id="btn-dl-reel">⬇ Reel</button>
+          <button class="btn-dl btn-dl-both" id="btn-dl-all" style="display:none">⬇ All Slides</button>
         </div>
       </div>
 
-      <!-- Designer body: canvas + controls -->
+      <!-- Body -->
       <div class="dbody">
 
-        <!-- ── LEFT: Preview ── -->
+        <!-- ── LEFT: Dual preview ── -->
         <div class="canvas-area">
 
-          <!-- Card type switcher -->
+          <!-- Card type toggle -->
           <div class="type-toggle" id="type-toggle">
-            <button class="tt-btn active" data-type="single">Single Card</button>
+            <button class="tt-btn active" data-type="single">Single</button>
             <button class="tt-btn" data-type="carousel">Carousel</button>
           </div>
 
-          <!-- Canvas -->
-          <div class="canvas-frame">
-            <canvas id="card-canvas" title="Drag to reposition · Scroll to zoom"></canvas>
+          <!-- DUAL CANVAS ROW -->
+          <div class="dual-canvas-row">
+            <!-- Square 1:1 -->
+            <div class="canvas-col-wrap">
+              <div class="canvas-label">Square · 1080×1080</div>
+              <div class="canvas-frame canvas-frame-sq">
+                <canvas id="card-canvas-sq" title="Drag · Scroll to zoom"></canvas>
+              </div>
+            </div>
+            <!-- Reel 9:16 -->
+            <div class="canvas-col-wrap">
+              <div class="canvas-label">Reel / Story · 1080×1920</div>
+              <div class="canvas-frame canvas-frame-reel">
+                <canvas id="card-canvas-reel" title="Scroll to zoom"></canvas>
+              </div>
+            </div>
           </div>
 
-          <!-- Image tools row -->
+          <!-- Image toolbar -->
           <div class="img-toolbar">
             <span class="itb-label">Image</span>
-            <button class="itb-btn" id="itb-zoom-in" title="Zoom in">+</button>
-            <button class="itb-btn" id="itb-zoom-out" title="Zoom out">−</button>
-            <button class="itb-btn" id="itb-reset" title="Reset">⊙</button>
+            <button class="itb-btn" id="itb-zoom-in">+</button>
+            <button class="itb-btn" id="itb-zoom-out">−</button>
+            <button class="itb-btn" id="itb-reset">⊙</button>
             <div class="itb-sep"></div>
-            <span class="itb-hint">Drag canvas to reposition · Scroll to zoom</span>
+            <span class="itb-hint">Drag square canvas · Scroll to zoom</span>
           </div>
 
-          <!-- Carousel controls -->
+          <!-- Carousel bar -->
           <div class="carousel-bar" id="carousel-bar" style="display:none">
             <button class="cb-btn" id="c-prev">← Prev</button>
-            <span class="cb-indicator" id="c-indicator">Slide 1/1</span>
+            <span class="cb-indicator" id="c-indicator"></span>
             <button class="cb-btn" id="c-next">Next →</button>
-            <button class="cb-btn cb-add" id="c-add">+ Add Slide</button>
-            <button class="cb-btn cb-del" id="c-del">✕ Delete</button>
+            <button class="cb-btn cb-add" id="c-add">+ Add</button>
+            <button class="cb-btn" id="c-del">✕ Del</button>
           </div>
         </div>
 
@@ -126,26 +137,33 @@
               <option value="sport">Sport</option>
               <option value="business">Business</option>
               <option value="technology">Technology</option>
-              <option value="entertainment">Entertainment</option>
+              <option value="entertainment">Leisure / Entertainment</option>
+              <option value="lifestyle">Leisure / Lifestyle</option>
               <option value="motoring">Motoring</option>
-              <option value="lifestyle">Lifestyle</option>
               <option value="travel">Travel</option>
             </select>
           </div>
 
           <div class="ctrl-block">
-            <div class="ctrl-label">Kicker <span class="ctrl-sub">Short bold label (top-left box)</span></div>
-            <input class="ctrl-input" id="ctrl-kicker" type="text" maxlength="40" placeholder="e.g. BREAKING NEWS"/>
+            <div class="ctrl-label">Kicker <span class="ctrl-sub">Short label in outline box</span></div>
+            <div class="color-input-row">
+              <input class="ctrl-input" id="ctrl-kicker" type="text" maxlength="40" placeholder="e.g. BREAKING NEWS"/>
+              <label class="color-swatch-wrap" title="Kicker text colour">
+                <input type="color" id="ctrl-kicker-color" value="#FFFFFF" class="color-picker"/>
+                <span class="color-swatch" id="kicker-swatch" style="background:#ffffff"></span>
+              </label>
+            </div>
           </div>
 
           <div class="ctrl-block">
             <div class="ctrl-label">Headline</div>
-            <textarea class="ctrl-ta" id="ctrl-headline" rows="3" placeholder="Story headline…"></textarea>
-          </div>
-
-          <div class="ctrl-block">
-            <div class="ctrl-label">Caption <span class="ctrl-sub">Key fact or quote</span></div>
-            <textarea class="ctrl-ta" id="ctrl-caption" rows="2" placeholder="Supporting detail…"></textarea>
+            <div class="color-input-row color-input-row--top">
+              <textarea class="ctrl-ta" id="ctrl-headline" rows="3" placeholder="Story headline…"></textarea>
+              <label class="color-swatch-wrap" title="Headline text colour">
+                <input type="color" id="ctrl-hl-color" value="#FFFFFF" class="color-picker"/>
+                <span class="color-swatch" id="hl-swatch" style="background:#ffffff"></span>
+              </label>
+            </div>
           </div>
 
           <div class="ctrl-block">
@@ -167,10 +185,10 @@
 
           <div class="ctrl-block">
             <div class="ctrl-label-row">
-              <span class="ctrl-label">Share Text</span>
+              <span class="ctrl-label">Social Sharing Text (caption)</span>
               <button class="copy-btn" id="copy-share-btn">Copy</button>
             </div>
-            <textarea class="ctrl-ta ctrl-share" id="ctrl-share" rows="6" placeholder="Share text will appear here…" spellcheck="false"></textarea>
+            <textarea class="ctrl-ta ctrl-share" id="ctrl-share" rows="7" placeholder="Share text with shortened link appears here…" spellcheck="false"></textarea>
           </div>
 
         </div>
