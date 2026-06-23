@@ -29,6 +29,8 @@ body{background:var(--black);color:var(--white);font-family:var(--font);font-siz
 .icon-btn{background:transparent;border:1px solid var(--border2);border-radius:2px;color:var(--muted);width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
 .icon-btn:hover{color:var(--white);border-color:var(--border2);}
 .icon-btn.spin svg{animation:spin360 .5s linear infinite;}
+.sync-btn{background:transparent;border:1px solid var(--border2);border-radius:2px;color:var(--muted);font-family:var(--font);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 8px;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.sync-btn:hover{color:var(--white);border-color:var(--white);}
 @keyframes spin360{to{transform:rotate(360deg)}}
 
 /* FILTER BAR */
