@@ -541,7 +541,13 @@ function drawIOLBadge(ctx, logo, cc, cx, ly, lw, lh) {
 }
 
 function drawLeisureLogo(ctx, logo, x, y, w, h) {
-  if(logo) { ctx.drawImage(logo,x,y,w,h); return; }
+  if(logo) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen'; // dark pixels vanish, white/teal stay
+    ctx.drawImage(logo, x, y, w, h);
+    ctx.restore();
+    return;
+  }
   // Fallback text
   ctx.save();
   ctx.font='italic 700 36px Georgia,serif'; ctx.fillStyle='#4ECBCB';
