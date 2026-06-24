@@ -64,31 +64,36 @@ const PRELOADED = [
 
 /* ── State ── */
 let allStories = [], curFilter = 'all', visible = PAGE_SZ;
-let doneIds = new Set(JSON.parse(localStorage.getItem('iol_done')||'[]'));
-function saveDone() {
-  localStorage.setItem('iol_done', JSON.stringify([...doneIds]));
-  // Update sync code display if visible
-  const el = $id('sync-code-display');
-  if (el) el.value = btoa(JSON.stringify([...doneIds]));
+let doneIds = new Set();
+
+/* ── SUPABASE CONFIG ──
+   Fill in your project URL and anon key.
+   Get them: Supabase Dashboard → Settings → API */
+const SUPA_URL = 'YOUR_SUPABASE_URL';      // e.g. https://xxxx.supabase.co
+const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY'; // starts with eyJ...
+
+async function loadDoneFromSupabase() {
+  if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/done_stories?select=id`, {
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
+    });
+    const rows = await res.json();
+    if (Array.isArray(rows)) { doneIds = new Set(rows.map(r => r.id)); renderFeed(); }
+  } catch(e) { console.warn('Supabase load:', e); }
 }
 
-/* ── SHARED DONE STATE: export/import for team sync ── */
-function exportDoneCode() {
-  if (doneIds.size === 0) { alert('No cards marked as done yet.'); return; }
-  const code = btoa(JSON.stringify([...doneIds]));
-  const el = $id('sync-code-display');
-  if (el) { el.value = code; el.select(); }
-  navigator.clipboard.writeText(code).then(() => alert('Sync code copied! Share this with your team.')).catch(() => {});
-}
-function importDoneCode() {
-  const input = prompt('Paste the sync code from a team member:');
-  if (!input) return;
+async function markDoneInSupabase(storyId, headline) {
+  doneIds.add(storyId);
+  if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
+  const name = localStorage.getItem('iol_cards_user') || 'Team';
   try {
-    const ids = JSON.parse(atob(input.trim()));
-    ids.forEach(id => doneIds.add(id));
-    saveDone(); renderFeed();
-    alert('Synced! ' + ids.length + ' completed cards imported.');
-  } catch(e) { alert('Invalid sync code. Ask your team member to re-export.'); }
+    await fetch(`${SUPA_URL}/rest/v1/done_stories`, {
+      method: 'POST',
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=ignore-duplicates' },
+      body: JSON.stringify({ id: storyId, headline, marked_by: name })
+    });
+  } catch(e) { console.warn('Supabase mark:', e); }
 }
 function relTime(s){if(!s)return'Today';try{const m=Math.floor((Date.now()-new Date(s))/60000);if(m<1)return'Just now';if(m<60)return m+'m ago';if(m<1440)return Math.floor(m/60)+'h ago';return'Today';}catch{return'Today';}}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
@@ -107,6 +112,10 @@ let d = {
   imgUrl:'', imgEl:null, imgX:0, imgY:0, imgScale:1,
   textPos:'mid', storyUrl:'', shortUrl:'',
   slides:[], slide:0,
+  // Separate image positioning for square vs reel
+  sqImgX:0, sqImgY:0, sqImgScale:1,
+  reelImgX:0, reelImgY:0, reelImgScale:1,
+  draggingTarget:'sq', // which canvas is being dragged
   dragging:false, dsx:0, dsy:0, dox:0, doy:0,
   storyId:null,
 };
@@ -130,6 +139,7 @@ async function loadStories(refresh) {
     if(status){status.textContent=allStories.length+' stories · cached';status.className='feed-status';}
   }
   renderFeed();
+  loadDoneFromSupabase();
   if(btn)btn.classList.remove('spin');
 }
 
@@ -166,7 +176,9 @@ async function openDesigner(story) {
   d.cat=story.cat||'news'; d.kicker=autoKicker(story.headline,story.cat);
   d.headline=story.headline||''; d.imgUrl=story.image||'';
   d.storyUrl=story.url||''; d.shortUrl='';
-  d.imgX=0;d.imgY=0;d.imgScale=1; d.textPos='mid';
+  d.sqImgX=0;d.sqImgY=0;d.sqImgScale=1;
+  d.reelImgX=0;d.reelImgY=0;d.reelImgScale=1;
+  d.textPos='mid';
   d.type='single'; d.slides=[]; d.slide=0; d.imgEl=null; d.storyId=story.id;
   d.headlineColor='#FFFFFF'; d.kickerColor='#FFFFFF';
 
@@ -229,7 +241,7 @@ $id('ctrl-reload')?.addEventListener('click',reloadImg);
 async function reloadImg(){
   const url=gv('ctrl-imgurl').trim();d.imgUrl=url;d.imgX=0;d.imgY=0;d.imgScale=1;d.imgEl=null;
   if(url){d.imgEl=await loadImgCORS(WORKER+'/image?url='+encodeURIComponent(url));if(!d.imgEl)d.imgEl=await loadImgDirect(url);}
-  const sl=curSlide();if(sl!==d){sl.imgUrl=url;sl.imgEl=d.imgEl;sl.imgX=0;sl.imgY=0;sl.imgScale=1;}
+  const sl=curSlide();if(sl!==d){sl.imgUrl=url;sl.imgEl=d.imgEl;sl.sqImgX=0;sl.sqImgY=0;sl.sqImgScale=1;sl.reelImgX=0;sl.reelImgY=0;sl.reelImgScale=1;}
   renderBoth();
 }
 
@@ -244,7 +256,7 @@ $id('type-toggle')?.addEventListener('click',e=>{
   updateCarouselUI();renderBoth();
 });
 
-function addSlide(){d.slides.push({kicker:d.kicker,headline:d.headline,cat:d.cat,headlineColor:d.headlineColor,kickerColor:d.kickerColor,imgUrl:d.imgUrl,imgEl:d.imgEl,imgX:0,imgY:0,imgScale:1});d.slide=d.slides.length-1;}
+function addSlide(){d.slides.push({kicker:d.kicker,headline:d.headline,cat:d.cat,headlineColor:d.headlineColor,kickerColor:d.kickerColor,imgUrl:d.imgUrl,imgEl:d.imgEl,sqImgX:0,sqImgY:0,sqImgScale:1,reelImgX:0,reelImgY:0,reelImgScale:1});d.slide=d.slides.length-1;}
 function syncSlideUI(){const sl=d.slides[d.slide];if(!sl)return;sv('ctrl-kicker',sl.kicker);sv('ctrl-headline',sl.headline);sv('ctrl-cat',sl.cat||d.cat);sv('ctrl-imgurl',sl.imgUrl||'');sv('ctrl-hl-color',sl.headlineColor||'#FFFFFF');sv('ctrl-kicker-color',sl.kickerColor||'#FFFFFF');}
 function updateCarouselUI(){const bar=$id('carousel-bar'),ind=$id('c-indicator'),isC=d.type==='carousel';if(bar)bar.style.display=isC?'flex':'none';if(ind)ind.textContent=isC?`Slide ${d.slide+1} / ${d.slides.length}`:'';;}
 
@@ -254,23 +266,23 @@ $id('c-prev')?.addEventListener('click',()=>{if(d.slide>0){d.slide--;syncSlideUI
 $id('c-next')?.addEventListener('click',()=>{if(d.slide<d.slides.length-1){d.slide++;syncSlideUI();updateCarouselUI();renderBoth();}});
 
 /* Image toolbar — applies to BOTH canvases simultaneously */
-$id('itb-zoom-in')?.addEventListener('click',()=>{const sl=curSlide();sl.imgScale=Math.min(3,(sl.imgScale||1)+0.1);if(sl!==d)d.imgScale=sl.imgScale;renderBoth();});
-$id('itb-zoom-out')?.addEventListener('click',()=>{const sl=curSlide();sl.imgScale=Math.max(0.2,(sl.imgScale||1)-0.1);if(sl!==d)d.imgScale=sl.imgScale;renderBoth();});
-$id('itb-reset')?.addEventListener('click',()=>{const sl=curSlide();sl.imgX=0;sl.imgY=0;sl.imgScale=1;if(sl!==d){d.imgX=0;d.imgY=0;d.imgScale=1;}renderBoth();});
+$id('itb-zoom-in')?.addEventListener('click',()=>{const sl=curSlide();sl.sqImgScale=Math.min(3,(sl.sqImgScale||1)+0.1);sl.reelImgScale=Math.min(3,(sl.reelImgScale||1)+0.1);if(sl!==d){d.sqImgScale=sl.sqImgScale;d.reelImgScale=sl.reelImgScale;}renderBoth();});
+$id('itb-zoom-out')?.addEventListener('click',()=>{const sl=curSlide();sl.sqImgScale=Math.max(0.2,(sl.sqImgScale||1)-0.1);sl.reelImgScale=Math.max(0.2,(sl.reelImgScale||1)-0.1);if(sl!==d){d.sqImgScale=sl.sqImgScale;d.reelImgScale=sl.reelImgScale;}renderBoth();});
+$id('itb-reset')?.addEventListener('click',()=>{const sl=curSlide();sl.sqImgX=0;sl.sqImgY=0;sl.sqImgScale=1;sl.reelImgX=0;sl.reelImgY=0;sl.reelImgScale=1;if(sl!==d){d.sqImgX=0;d.sqImgY=0;d.sqImgScale=1;d.reelImgX=0;d.reelImgY=0;d.reelImgScale=1;}renderBoth();});
 
 /* Drag on SQUARE canvas */
 const canvasSq=$id('card-canvas-sq');
 if(canvasSq){
-  canvasSq.addEventListener('mousedown',e=>{d.dragging=true;d.dsx=e.clientX;d.dsy=e.clientY;const sl=curSlide();d.dox=sl.imgX||0;d.doy=sl.imgY||0;e.preventDefault();});
-  window.addEventListener('mousemove',e=>{if(!d.dragging)return;const r=canvasSq.getBoundingClientRect(),sx=SQ/r.width;const sl=curSlide();sl.imgX=d.dox+(e.clientX-d.dsx)*sx;sl.imgY=d.doy+(e.clientY-d.dsy)*sx;if(sl!==d){d.imgX=sl.imgX;d.imgY=sl.imgY;}renderBoth();});
+  canvasSq.addEventListener('mousedown',e=>{d.dragging=true;d.draggingTarget='sq';d.dsx=e.clientX;d.dsy=e.clientY;const sl=curSlide();d.dox=sl.sqImgX||0;d.doy=sl.sqImgY||0;e.preventDefault();});
+  window.addEventListener('mousemove',e=>{if(!d.dragging)return;const target=d.draggingTarget;const sl=curSlide();if(target==='sq'){const r=canvasSq.getBoundingClientRect(),sx=SQ/r.width;sl.sqImgX=d.dox+(e.clientX-d.dsx)*sx;sl.sqImgY=d.doy+(e.clientY-d.dsy)*sx;if(sl!==d){d.sqImgX=sl.sqImgX;d.sqImgY=sl.sqImgY;}}else{const r=canvasReel.getBoundingClientRect(),sx=RW/r.width;sl.reelImgX=d.dox+(e.clientX-d.dsx)*sx;sl.reelImgY=d.doy+(e.clientY-d.dsy)*sx;if(sl!==d){d.reelImgX=sl.reelImgX;d.reelImgY=sl.reelImgY;}}renderBoth();});
   window.addEventListener('mouseup',()=>{d.dragging=false;});
-  canvasSq.addEventListener('wheel',e=>{e.preventDefault();const sl=curSlide();sl.imgScale=Math.max(0.2,Math.min(3,(sl.imgScale||1)-e.deltaY*0.001));if(sl!==d)d.imgScale=sl.imgScale;renderBoth();},{passive:false});
+  canvasSq.addEventListener('wheel',e=>{e.preventDefault();const sl=curSlide();sl.sqImgScale=Math.max(0.2,Math.min(3,(sl.sqImgScale||1)-e.deltaY*0.001));if(sl!==d)d.sqImgScale=sl.sqImgScale;renderBoth();},{passive:false});
 }
 /* Drag on REEL canvas */
 const canvasReel=$id('card-canvas-reel');
 if(canvasReel){
-  canvasReel.addEventListener('mousedown',e=>{d.dragging=true;d.dsx=e.clientX;d.dsy=e.clientY;const sl=curSlide();d.dox=sl.imgX||0;d.doy=sl.imgY||0;e.preventDefault();});
-  canvasReel.addEventListener('wheel',e=>{e.preventDefault();const sl=curSlide();sl.imgScale=Math.max(0.2,Math.min(3,(sl.imgScale||1)-e.deltaY*0.001));if(sl!==d)d.imgScale=sl.imgScale;renderBoth();},{passive:false});
+  canvasReel.addEventListener('mousedown',e=>{d.dragging=true;d.draggingTarget='reel';d.dsx=e.clientX;d.dsy=e.clientY;const sl=curSlide();d.dox=sl.reelImgX||0;d.doy=sl.reelImgY||0;e.preventDefault();});
+  canvasReel.addEventListener('wheel',e=>{e.preventDefault();const sl=curSlide();sl.reelImgScale=Math.max(0.2,Math.min(3,(sl.reelImgScale||1)-e.deltaY*0.001));if(sl!==d)d.reelImgScale=sl.reelImgScale;renderBoth();},{passive:false});
 }
 
 /* Downloads */
@@ -281,7 +293,7 @@ $id('btn-dl-all')?.addEventListener('click',async()=>{
   if(d.type!=='carousel'||!d.slides.length){dlCanvas('card-canvas-sq','iol-card-square.png');dlCanvas('card-canvas-reel','iol-card-reel.png');return;}
   for(let i=0;i<d.slides.length;i++){d.slide=i;syncSlideUI();updateCarouselUI();await renderBoth();dlCanvas('card-canvas-sq','iol-sq-'+String(i+1).padStart(2,'0')+'.png');dlCanvas('card-canvas-reel','iol-reel-'+String(i+1).padStart(2,'0')+'.png');await new Promise(r=>setTimeout(r,250));}
 });
-function markDone(){if(d.storyId){doneIds.add(d.storyId);saveDone();}}
+function markDone(){if(d.storyId){markDoneInSupabase(d.storyId,d.headline);renderFeed();}}
 function dlCanvas(canvasId,fn){const c=$id(canvasId);if(!c)return;try{const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=fn;a.click();}catch(e){alert('Right-click the card and choose "Save image as".');}}
 
 /* Share text */
@@ -309,9 +321,12 @@ async function renderBoth() {
     kickerColor:   sl.kickerColor   || d.kickerColor    || '#FFFFFF',
     cat:           sl.cat           || d.cat            || 'news',
     imgEl:         sl.imgEl         || d.imgEl,
-    imgX:          sl.imgX  != null ? sl.imgX  : d.imgX,
-    imgY:          sl.imgY  != null ? sl.imgY  : d.imgY,
-    imgScale:      sl.imgScale      || d.imgScale       || 1,
+    sqImgX:     sl.sqImgX   != null ? sl.sqImgX   : d.sqImgX,
+    sqImgY:     sl.sqImgY   != null ? sl.sqImgY   : d.sqImgY,
+    sqImgScale: sl.sqImgScale       || d.sqImgScale     || 1,
+    reelImgX:   sl.reelImgX != null ? sl.reelImgX : d.reelImgX,
+    reelImgY:   sl.reelImgY != null ? sl.reelImgY : d.reelImgY,
+    reelImgScale:sl.reelImgScale    || d.reelImgScale   || 1,
     textPos:       d.textPos        || 'mid',
     logoIOL, logoLeisure,
   };
@@ -341,7 +356,7 @@ async function renderBoth() {
    ════════════════════════════════════════════ */
 function drawStandardSq(ctx, p, cc) {
   const W=SQ, H=SQ;
-  drawPhotoAndOverlay(ctx, p, W, H);
+  drawPhotoAndOverlay(ctx, p, W, H, p.sqImgX, p.sqImgY, p.sqImgScale);
 
   // Left accent strip
   ctx.fillStyle=cc.col; ctx.fillRect(0,0,6,H);
@@ -362,7 +377,7 @@ function drawStandardSq(ctx, p, cc) {
    ════════════════════════════════════════════ */
 function drawStandardReel(ctx, p, cc) {
   const W=RW, H=RH;
-  drawPhotoAndOverlay(ctx, p, W, H);
+  drawPhotoAndOverlay(ctx, p, W, H, p.reelImgX, p.reelImgY, p.reelImgScale);
 
   // Left accent strip
   ctx.fillStyle=cc.col; ctx.fillRect(0,0,6,H);
@@ -398,7 +413,7 @@ function drawLeisureSq(ctx, p, cc) {
   ctx.fillStyle='#1A0E18'; ctx.fillRect(0,0,W,H);
 
   // Photo
-  drawPhoto(ctx, p, W, H);
+  drawPhoto(ctx, p, W, H, p.sqImgX, p.sqImgY, p.sqImgScale);
 
   // Heavy purple-tinted gradient bottom half
   const g=ctx.createLinearGradient(0,0,0,H);
@@ -430,7 +445,7 @@ function drawLeisureSq(ctx, p, cc) {
 function drawLeisureReel(ctx, p, cc) {
   const W=RW, H=RH;
   ctx.fillStyle='#1A0E18'; ctx.fillRect(0,0,W,H);
-  drawPhoto(ctx, p, W, H);
+  drawPhoto(ctx, p, W, H, p.reelImgX, p.reelImgY, p.reelImgScale);
 
   const g=ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,'rgba(20,8,18,0)'); g.addColorStop(0.25,'rgba(20,8,18,0.20)');
@@ -457,20 +472,20 @@ function drawLeisureReel(ctx, p, cc) {
 /* ════════════════════════════════════════════
    SHARED DRAW HELPERS
    ════════════════════════════════════════════ */
-function drawPhotoAndOverlay(ctx, p, W, H) {
+function drawPhotoAndOverlay(ctx, p, W, H, imgX, imgY, imgScale) {
   ctx.fillStyle='#0D0D0D'; ctx.fillRect(0,0,W,H);
-  drawPhoto(ctx, p, W, H);
+  drawPhoto(ctx, p, W, H, imgX, imgY, imgScale);
   const g=ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,'rgba(0,0,0,0.15)'); g.addColorStop(0.38,'rgba(0,0,0,0.40)');
   g.addColorStop(0.65,'rgba(0,0,0,0.60)'); g.addColorStop(1,'rgba(0,0,0,0.84)');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 }
 
-function drawPhoto(ctx, p, W, H) {
+function drawPhoto(ctx, p, W, H, imgX, imgY, imgScale) {
   if(!p.imgEl) return;
   ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,H); ctx.clip();
-  const sc=Math.max(W/p.imgEl.width,H/p.imgEl.height)*(p.imgScale||1);
-  ctx.drawImage(p.imgEl,(W-p.imgEl.width*sc)/2+p.imgX,(H-p.imgEl.height*sc)/2+p.imgY,p.imgEl.width*sc,p.imgEl.height*sc);
+  const sc=Math.max(W/p.imgEl.width,H/p.imgEl.height)*(imgScale||1);
+  ctx.drawImage(p.imgEl,(W-p.imgEl.width*sc)/2+(imgX||0),(H-p.imgEl.height*sc)/2+(imgY||0),p.imgEl.width*sc,p.imgEl.height*sc);
   ctx.restore();
 }
 
@@ -538,4 +553,11 @@ function loadImgDirect(src){return new Promise(res=>{const i=new Image();i.onloa
 /* ════════════════════════════════════════════
    INIT
    ════════════════════════════════════════════ */
+// Ask for user name on first visit (used to track who marked what)
+if (!localStorage.getItem('iol_cards_user')) {
+  const name = prompt('Enter your name or initials (shown on team done-list):') || 'Team';
+  localStorage.setItem('iol_cards_user', name);
+}
 loadStories(false);
+// Poll Supabase every 30s so team ticks stay in sync
+setInterval(loadDoneFromSupabase, 30000);
