@@ -69,8 +69,8 @@ let doneIds = new Set();
 /* ── SUPABASE CONFIG ──
    Fill in your project URL and anon key.
    Get them: Supabase Dashboard → Settings → API */
-const SUPA_URL = 'YOUR_SUPABASE_URL';      // e.g. https://xxxx.supabase.co
-const SUPA_KEY = 'YOUR_SUPABASE_ANON_KEY'; // starts with eyJ...
+const SUPA_URL = 'https://asipandmcgagpswsgbtr.supabase.co';      // e.g. https://xxxx.supabase.co
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzaXBhbmRtY2dhZ3Bzd3NnYnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNTc0MzEsImV4cCI6MjA5NzgzMzQzMX0.yc6mSP_EXe8g1w61r667SCoQsSeZILSkZ-BfCka6VDI'; // starts with eyJ...
 
 async function loadDoneFromSupabase() {
   if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
