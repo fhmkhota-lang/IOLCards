@@ -69,8 +69,8 @@ let doneIds = new Set();
 /* ── SUPABASE CONFIG ──
    Fill in your project URL and anon key.
    Get them: Supabase Dashboard → Settings → API */
-const SUPA_URL = 'https://asipandmcgagpswsgbtr.supabase.co';      // e.g. https://xxxx.supabase.co
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzaXBhbmRtY2dhZ3Bzd3NnYnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNTc0MzEsImV4cCI6MjA5NzgzMzQzMX0.yc6mSP_EXe8g1w61r667SCoQsSeZILSkZ-BfCka6VDI'; // starts with eyJ...
+const SUPA_URL = 'https://asipandmcgagpswsgbtr.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzaXBhbmRtY2dhZ3Bzd3NnYnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNTc0MzEsImV4cCI6MjA5NzgzMzQzMX0.yc6mSP_EXe8g1w61r667SCoQsSeZILSkZ-BfCka6VDI';
 
 async function loadDoneFromSupabase() {
   if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
@@ -110,7 +110,7 @@ let d = {
   type:'single', cat:'news', kicker:'BREAKING NEWS', headline:'',
   headlineColor:'#FFFFFF', kickerColor:'#FFFFFF',
   imgUrl:'', imgEl:null, imgX:0, imgY:0, imgScale:1,
-  textPos:'mid', storyUrl:'', shortUrl:'',
+  textPos:'mid', reelTextPos:'mid', storyUrl:'', shortUrl:'',
   slides:[], slide:0,
   // Separate image positioning for square vs reel
   sqImgX:0, sqImgY:0, sqImgScale:1,
@@ -178,14 +178,15 @@ async function openDesigner(story) {
   d.storyUrl=story.url||''; d.shortUrl='';
   d.sqImgX=0;d.sqImgY=0;d.sqImgScale=1;
   d.reelImgX=0;d.reelImgY=0;d.reelImgScale=1;
-  d.textPos='mid';
+  d.textPos='mid'; d.reelTextPos='mid';
   d.type='single'; d.slides=[]; d.slide=0; d.imgEl=null; d.storyId=story.id;
   d.headlineColor='#FFFFFF'; d.kickerColor='#FFFFFF';
 
   sv('ctrl-cat',d.cat); sv('ctrl-kicker',d.kicker); sv('ctrl-headline',d.headline);
   sv('ctrl-imgurl',d.imgUrl);
   document.querySelectorAll('.tt-btn').forEach(b=>b.classList.toggle('active',b.dataset.type==='single'));
-  document.querySelectorAll('.pos-btn').forEach(b=>b.classList.toggle('active',b.dataset.pos==='mid'));
+  document.querySelectorAll('#pos-grid .pos-btn').forEach(b=>b.classList.toggle('active',b.dataset.pos==='mid'));
+  document.querySelectorAll('#reel-pos-grid .pos-btn').forEach(b=>b.classList.toggle('active',b.dataset.pos==='mid'));
   // Sync colour pickers
   sv('ctrl-hl-color','#FFFFFF'); sv('ctrl-kicker-color','#FFFFFF');
   if($id('dnav-title'))$id('dnav-title').textContent=story.headline;
@@ -245,7 +246,16 @@ async function reloadImg(){
   renderBoth();
 }
 
-$id('pos-grid')?.addEventListener('click',e=>{const b=e.target.closest('.pos-btn');if(!b)return;document.querySelectorAll('.pos-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');d.textPos=b.dataset.pos;renderBoth();});
+$id('pos-grid')?.addEventListener('click',e=>{
+  const b=e.target.closest('.pos-btn');if(!b)return;
+  $id('pos-grid').querySelectorAll('.pos-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); d.textPos=b.dataset.pos; renderBoth();
+});
+$id('reel-pos-grid')?.addEventListener('click',e=>{
+  const b=e.target.closest('.pos-btn');if(!b)return;
+  $id('reel-pos-grid').querySelectorAll('.pos-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); d.reelTextPos=b.dataset.pos; renderBoth();
+});
 
 $id('type-toggle')?.addEventListener('click',e=>{
   const b=e.target.closest('.tt-btn');if(!b)return;
@@ -327,7 +337,8 @@ async function renderBoth() {
     reelImgX:   sl.reelImgX != null ? sl.reelImgX : d.reelImgX,
     reelImgY:   sl.reelImgY != null ? sl.reelImgY : d.reelImgY,
     reelImgScale:sl.reelImgScale    || d.reelImgScale   || 1,
-    textPos:       d.textPos        || 'mid',
+    textPos:    d.textPos    || 'mid',
+    reelTextPos: d.reelTextPos || 'mid',
     logoIOL, logoLeisure,
   };
   const cc = catCfg(p.cat);
@@ -393,9 +404,10 @@ function drawStandardReel(ctx, p, cc) {
   const hlLines=wrapText(ctx,p.headline||'',W-100), hlLH=86;
   const totalH=hlLines.length*hlLH;
   let blockTop;
-  if(p.textPos==='top')      blockTop=blockAreaTop+60;
-  else if(p.textPos==='bot') blockTop=blockAreaTop+blockAreaH-totalH-20;
-  else                        blockTop=blockAreaTop+(blockAreaH-totalH)/2;
+  const rp = p.reelTextPos||'mid';
+  if(rp==='top')      blockTop=blockAreaTop+60;
+  else if(rp==='bot') blockTop=blockAreaTop+blockAreaH-totalH-20;
+  else                blockTop=blockAreaTop+(blockAreaH-totalH)/2;
   ctx.fillStyle=p.headlineColor||'#FFFFFF';
   hlLines.forEach((ln,i)=>ctx.fillText(ln,W/2,blockTop+(i+1)*hlLH));
   ctx.restore();
@@ -457,7 +469,7 @@ function drawLeisureReel(ctx, p, cc) {
 
   // Headline
   const padL=56, maxW=W-padL-56;
-  const textY=p.textPos==='top'?420:p.textPos==='bot'?1100:760;
+  const rp2=p.reelTextPos||'mid';const textY=rp2==='top'?420:rp2==='bot'?1100:760;
   ctx.save();
   ctx.font='900 80px Poppins,Arial Black,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   ctx.fillStyle=p.headlineColor||'#F06BB5';
