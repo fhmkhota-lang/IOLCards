@@ -626,15 +626,29 @@ function drawTemplateLayersSync(ctx, layers) {
     if (!layer.visible) continue;
     const img = _layerImgCache[layer.id];
     if (!img) continue;
-    const aspect = (img.naturalWidth || img.width) / (img.naturalHeight || img.height);
-    // Layer coords are in 1080px canvas space — use directly
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    const aspect = iw / ih;
     const drawW = layer.w;
     const drawH = drawW / aspect;
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.globalAlpha = (layer.opacity ?? 100) / 100;
-    ctx.drawImage(img, layer.x, layer.y, drawW, drawH);
+    // If SVG or source is smaller than draw size, pre-raster at 2x for crisp edges
+    if (layer.b64 && layer.b64.startsWith('data:image/svg') || iw < drawW * 1.5) {
+      const offscreen = document.createElement('canvas');
+      const scale = 2;
+      offscreen.width = Math.round(drawW * scale);
+      offscreen.height = Math.round(drawH * scale);
+      const octx = offscreen.getContext('2d');
+      octx.imageSmoothingEnabled = true;
+      octx.imageSmoothingQuality = 'high';
+      octx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
+      ctx.drawImage(offscreen, layer.x, layer.y, drawW, drawH);
+    } else {
+      ctx.drawImage(img, layer.x, layer.y, drawW, drawH);
+    }
     ctx.restore();
   }
 }
