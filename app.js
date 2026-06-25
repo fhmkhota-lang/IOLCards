@@ -34,17 +34,17 @@ function waitPoppins() { return document.fonts.load('900 60px Poppins').catch(()
 
 /* ── Category config ── */
 const CAT_CFG = {
-  news:          { col:'#E8192C', lbl:'NEWS',          style:'standard' },
-  politics:      { col:'#E8192C', lbl:'NEWS',          style:'standard' },
-  sport:         { col:'#00A651', lbl:'SPORT',         style:'standard' },
-  business:      { col:'#1565C0', lbl:'BUSINESS',      style:'standard' },
-  technology:    { col:'#1565C0', lbl:'TECH',          style:'standard' },
-  entertainment: { col:'#E91E8C', lbl:'LEISURE',       style:'leisure'  },
-  lifestyle:     { col:'#E91E8C', lbl:'LEISURE',       style:'leisure'  },
-  leisure:       { col:'#E91E8C', lbl:'LEISURE',       style:'leisure'  },
-  motoring:      { col:'#F26522', lbl:'MOTORING',      style:'standard' },
-  travel:        { col:'#F5A623', lbl:'TRAVEL',        style:'standard' },
-  default:       { col:'#E8192C', lbl:'NEWS',          style:'standard' },
+  news:          { col:'#E8192C', lbl:'NEWS',      style:'standard' },
+  politics:      { col:'#E8192C', lbl:'POLITICS',  style:'standard' },
+  sport:         { col:'#00A651', lbl:'SPORT',     style:'standard' },
+  business:      { col:'#1565C0', lbl:'BUSINESS',  style:'standard' },
+  technology:    { col:'#1565C0', lbl:'TECH',      style:'standard' },
+  entertainment: { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
+  lifestyle:     { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
+  leisure:       { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
+  motoring:      { col:'#F26522', lbl:'MOTORING',  style:'standard' },
+  travel:        { col:'#F5A623', lbl:'TRAVEL',    style:'standard' },
+  default:       { col:'#E8192C', lbl:'NEWS',      style:'standard' },
 };
 function catCfg(c) { return CAT_CFG[(c||'').toLowerCase()] || CAT_CFG.default; }
 
@@ -380,7 +380,7 @@ function drawStandardSq(ctx, p, cc) {
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   // IOL logo + pill
-  drawIOLBadge(ctx, p.logoIOL, cc, W/2, H-112, 68, 52);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W/2, H-130, 120, 100);
 }
 
 /* ════════════════════════════════════════════
@@ -392,9 +392,6 @@ function drawStandardReel(ctx, p, cc) {
 
   // Left accent strip
   ctx.fillStyle=cc.col; ctx.fillRect(0,0,6,H);
-
-  // Kicker box top-left (slightly bigger on tall format)
-  drawKickerBox(ctx, p.kicker, p.kickerColor, 52, 80, W-104);
 
   // Text block — centred in the lower 2/3
   const logoZone=130;
@@ -413,7 +410,7 @@ function drawStandardReel(ctx, p, cc) {
   ctx.restore();
 
   // IOL logo + pill — top RIGHT (reel format)
-  drawIOLBadge(ctx, p.logoIOL, cc, W-100, 60, 88, 67);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W-85, 52, 130, 106);
 }
 
 /* ════════════════════════════════════════════
@@ -434,7 +431,19 @@ function drawLeisureSq(ctx, p, cc) {
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
   // IOL Leisure logo top-left
-  drawLeisureLogo(ctx, p.logoLeisure, 44, 36, 190, 134);
+  // Leisure badge — teal background, IOL Leisure logo inside
+  ctx.save();
+  const lbw=180, lbh=100, lbx=44, lby=36;
+  ctx.fillStyle='#1A8FA0'; // IOL Leisure teal
+  ctx.beginPath();
+  ctx.moveTo(lbx+8,lby); ctx.lineTo(lbx+lbw-8,lby);
+  ctx.quadraticCurveTo(lbx+lbw,lby,lbx+lbw,lby+8);
+  ctx.lineTo(lbx+lbw,lby+lbh-8); ctx.quadraticCurveTo(lbx+lbw,lby+lbh,lbx+lbw-8,lby+lbh);
+  ctx.lineTo(lbx+8,lby+lbh); ctx.quadraticCurveTo(lbx,lby+lbh,lbx,lby+lbh-8);
+  ctx.lineTo(lbx,lby+8); ctx.quadraticCurveTo(lbx,lby,lbx+8,lby);
+  ctx.closePath(); ctx.fill();
+  if(p.logoLeisure) ctx.drawImage(p.logoLeisure, lbx+4, lby+4, lbw-8, lbh-8);
+  ctx.restore();
 
   // Headline (hot pink, bold, left-aligned, large)
   const padL=52, maxW=W-padL-48;
@@ -465,7 +474,19 @@ function drawLeisureReel(ctx, p, cc) {
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
   // IOL Leisure logo top-right (bigger on tall format)
-  drawLeisureLogo(ctx, p.logoLeisure, W-278, 48, 230, 163);
+  // Leisure badge top-right on reel
+  ctx.save();
+  const rlbw=190, rlbh=110, rlbx=W-rlbw-44, rlby=48;
+  ctx.fillStyle='#1A8FA0';
+  ctx.beginPath();
+  ctx.moveTo(rlbx+8,rlby); ctx.lineTo(rlbx+rlbw-8,rlby);
+  ctx.quadraticCurveTo(rlbx+rlbw,rlby,rlbx+rlbw,rlby+8);
+  ctx.lineTo(rlbx+rlbw,rlby+rlbh-8); ctx.quadraticCurveTo(rlbx+rlbw,rlby+rlbh,rlbx+rlbw-8,rlby+rlbh);
+  ctx.lineTo(rlbx+8,rlby+rlbh); ctx.quadraticCurveTo(rlbx,rlby+rlbh,rlbx,rlby+rlbh-8);
+  ctx.lineTo(rlbx,rlby+8); ctx.quadraticCurveTo(rlbx,rlby,rlbx+8,rlby);
+  ctx.closePath(); ctx.fill();
+  if(p.logoLeisure) ctx.drawImage(p.logoLeisure, rlbx+4, rlby+4, rlbw-8, rlbh-8);
+  ctx.restore();
 
   // Headline
   const padL=56, maxW=W-padL-56;
@@ -520,6 +541,48 @@ function drawTextBlock(ctx, headline, caption, headlineColor, W, H, logoZone, te
   const blockTop=textPos==='top'?topY:textPos==='bot'?botY:midY;
   ctx.fillStyle=headlineColor||'#FFFFFF';
   hlLines.forEach((ln,i)=>ctx.fillText(ln,W/2,blockTop+(i+1)*hlLH));
+  ctx.restore();
+}
+
+/* ── VERTICAL BADGE (IOL logo + category name on colour bg) ──
+   Matches the NO_BACKGROUND.png reference style:
+   rounded-rect colour block, IOL logo centred top,
+   category label bottom in white. ── */
+function drawVerticalBadge(ctx, logo, cc, cx, cy, bw, bh) {
+  const rx = 8; // corner radius
+  ctx.save();
+  // Coloured background pill
+  ctx.fillStyle = cc.col;
+  ctx.beginPath();
+  ctx.moveTo(cx - bw/2 + rx, cy);
+  ctx.lineTo(cx + bw/2 - rx, cy);
+  ctx.quadraticCurveTo(cx + bw/2, cy, cx + bw/2, cy + rx);
+  ctx.lineTo(cx + bw/2, cy + bh - rx);
+  ctx.quadraticCurveTo(cx + bw/2, cy + bh, cx + bw/2 - rx, cy + bh);
+  ctx.lineTo(cx - bw/2 + rx, cy + bh);
+  ctx.quadraticCurveTo(cx - bw/2, cy + bh, cx - bw/2, cy + bh - rx);
+  ctx.lineTo(cx - bw/2, cy + rx);
+  ctx.quadraticCurveTo(cx - bw/2, cy, cx - bw/2 + rx, cy);
+  ctx.closePath();
+  ctx.fill();
+
+  // IOL logo — top portion of badge, white
+  if (logo) {
+    const lw = bw * 0.72, lh = lw / 1.308; // maintain 1324:1012 ratio
+    const lx = cx - lw/2, ly2 = cy + (bh*0.08);
+    ctx.drawImage(logo, lx, ly2, lw, lh);
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.font = `900 ${Math.round(bh*0.32)}px Poppins,sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('IOL', cx, cy + bh * 0.32);
+  }
+
+  // Category label — bottom of badge
+  ctx.fillStyle = '#fff';
+  ctx.font = `700 ${Math.round(bh*0.22)}px Poppins,Arial,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(cc.lbl, cx, cy + bh * 0.78);
   ctx.restore();
 }
 
