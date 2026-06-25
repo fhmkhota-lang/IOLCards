@@ -380,7 +380,7 @@ function drawStandardSq(ctx, p, cc) {
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   // IOL logo + pill
-  drawVerticalBadge(ctx, p.logoIOL, cc, W/2, H-130, 120, 100);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W/2, H-140, 140, 110);
 }
 
 /* ════════════════════════════════════════════
@@ -410,7 +410,7 @@ function drawStandardReel(ctx, p, cc) {
   ctx.restore();
 
   // IOL logo + pill — top RIGHT (reel format)
-  drawVerticalBadge(ctx, p.logoIOL, cc, W-85, 52, 130, 106);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W-90, 48, 140, 110);
 }
 
 /* ════════════════════════════════════════════
@@ -431,19 +431,8 @@ function drawLeisureSq(ctx, p, cc) {
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
   // IOL Leisure logo top-left
-  // Leisure badge — teal background, IOL Leisure logo inside
-  ctx.save();
-  const lbw=180, lbh=100, lbx=44, lby=36;
-  ctx.fillStyle='#1A8FA0'; // IOL Leisure teal
-  ctx.beginPath();
-  ctx.moveTo(lbx+8,lby); ctx.lineTo(lbx+lbw-8,lby);
-  ctx.quadraticCurveTo(lbx+lbw,lby,lbx+lbw,lby+8);
-  ctx.lineTo(lbx+lbw,lby+lbh-8); ctx.quadraticCurveTo(lbx+lbw,lby+lbh,lbx+lbw-8,lby+lbh);
-  ctx.lineTo(lbx+8,lby+lbh); ctx.quadraticCurveTo(lbx,lby+lbh,lbx,lby+lbh-8);
-  ctx.lineTo(lbx,lby+8); ctx.quadraticCurveTo(lbx,lby,lbx+8,lby);
-  ctx.closePath(); ctx.fill();
-  if(p.logoLeisure) ctx.drawImage(p.logoLeisure, lbx+4, lby+4, lbw-8, lbh-8);
-  ctx.restore();
+  // Leisure badge square — top-left, teal bg, leisure logo inside
+  drawLeisureBadge(ctx, p.logoLeisure, 44, 36, 160, 110);
 
   // Headline (hot pink, bold, left-aligned, large)
   const padL=52, maxW=W-padL-48;
@@ -474,19 +463,8 @@ function drawLeisureReel(ctx, p, cc) {
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
   // IOL Leisure logo top-right (bigger on tall format)
-  // Leisure badge top-right on reel
-  ctx.save();
-  const rlbw=190, rlbh=110, rlbx=W-rlbw-44, rlby=48;
-  ctx.fillStyle='#1A8FA0';
-  ctx.beginPath();
-  ctx.moveTo(rlbx+8,rlby); ctx.lineTo(rlbx+rlbw-8,rlby);
-  ctx.quadraticCurveTo(rlbx+rlbw,rlby,rlbx+rlbw,rlby+8);
-  ctx.lineTo(rlbx+rlbw,rlby+rlbh-8); ctx.quadraticCurveTo(rlbx+rlbw,rlby+rlbh,rlbx+rlbw-8,rlby+rlbh);
-  ctx.lineTo(rlbx+8,rlby+rlbh); ctx.quadraticCurveTo(rlbx,rlby+rlbh,rlbx,rlby+rlbh-8);
-  ctx.lineTo(rlbx,rlby+8); ctx.quadraticCurveTo(rlbx,rlby,rlbx+8,rlby);
-  ctx.closePath(); ctx.fill();
-  if(p.logoLeisure) ctx.drawImage(p.logoLeisure, rlbx+4, rlby+4, rlbw-8, rlbh-8);
-  ctx.restore();
+  // Leisure badge reel — top-right, teal bg, leisure logo inside
+  drawLeisureBadge(ctx, p.logoLeisure, W-204, 48, 160, 110);
 
   // Headline
   const padL=56, maxW=W-padL-56;
@@ -544,45 +522,54 @@ function drawTextBlock(ctx, headline, caption, headlineColor, W, H, logoZone, te
   ctx.restore();
 }
 
-/* ── VERTICAL BADGE (IOL logo + category name on colour bg) ──
-   Matches the NO_BACKGROUND.png reference style:
-   rounded-rect colour block, IOL logo centred top,
-   category label bottom in white. ── */
+/* ── VERTICAL BADGE — matches NO_BACKGROUND.png reference ── */
 function drawVerticalBadge(ctx, logo, cc, cx, cy, bw, bh) {
-  const rx = 8; // corner radius
   ctx.save();
-  // Coloured background pill
+
+  // 1. Rounded rectangle background in category colour
+  const r = 10;
+  const x = cx - bw/2, y = cy;
   ctx.fillStyle = cc.col;
   ctx.beginPath();
-  ctx.moveTo(cx - bw/2 + rx, cy);
-  ctx.lineTo(cx + bw/2 - rx, cy);
-  ctx.quadraticCurveTo(cx + bw/2, cy, cx + bw/2, cy + rx);
-  ctx.lineTo(cx + bw/2, cy + bh - rx);
-  ctx.quadraticCurveTo(cx + bw/2, cy + bh, cx + bw/2 - rx, cy + bh);
-  ctx.lineTo(cx - bw/2 + rx, cy + bh);
-  ctx.quadraticCurveTo(cx - bw/2, cy + bh, cx - bw/2, cy + bh - rx);
-  ctx.lineTo(cx - bw/2, cy + rx);
-  ctx.quadraticCurveTo(cx - bw/2, cy, cx - bw/2 + rx, cy);
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + bw - r, y);
+  ctx.arcTo(x + bw, y,       x + bw, y + r,      r);
+  ctx.lineTo(x + bw, y + bh - r);
+  ctx.arcTo(x + bw, y + bh,  x + bw - r, y + bh, r);
+  ctx.lineTo(x + r,  y + bh);
+  ctx.arcTo(x,       y + bh,  x,       y + bh - r, r);
+  ctx.lineTo(x,      y + r);
+  ctx.arcTo(x,       y,       x + r,   y,          r);
   ctx.closePath();
   ctx.fill();
 
-  // IOL logo — top portion of badge, white
+  // 2. IOL logo — top 60% of badge, centred, with padding
+  const logoPad = bw * 0.1;
+  const logoW = bw - logoPad * 2;
+  const logoH = logoW / 1.308; // maintain exact 1324:1012 ratio
+  const logoX = x + logoPad;
+  const logoY = y + (bh * 0.55 - logoH) / 2; // vertically centre in top 55%
   if (logo) {
-    const lw = bw * 0.72, lh = lw / 1.308; // maintain 1324:1012 ratio
-    const lx = cx - lw/2, ly2 = cy + (bh*0.08);
-    ctx.drawImage(logo, lx, ly2, lw, lh);
-  } else {
-    ctx.fillStyle = '#fff';
-    ctx.font = `900 ${Math.round(bh*0.32)}px Poppins,sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('IOL', cx, cy + bh * 0.32);
+    ctx.drawImage(logo, logoX, logoY, logoW, logoH);
   }
 
-  // Category label — bottom of badge
-  ctx.fillStyle = '#fff';
-  ctx.font = `700 ${Math.round(bh*0.22)}px Poppins,Arial,sans-serif`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(cc.lbl, cx, cy + bh * 0.78);
+  // 3. Divider line
+  const divY = y + bh * 0.58;
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + 10, divY);
+  ctx.lineTo(x + bw - 10, divY);
+  ctx.stroke();
+
+  // 4. Category label — bottom 40%, white bold
+  const lblSize = Math.round(bh * 0.24);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `700 ${lblSize}px Poppins,Arial,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(cc.lbl, cx, y + bh * 0.79);
+
   ctx.restore();
 }
 
@@ -600,6 +587,25 @@ function drawIOLBadge(ctx, logo, cc, cx, ly, lw, lh) {
   const pw=ctx.measureText(cc.lbl).width+28, ph=Math.round(lh*0.48), py=ly+lh+5;
   ctx.fillStyle=cc.col; ctx.fillRect(cx-pw/2,py,pw,ph);
   ctx.fillStyle='#fff'; ctx.fillText(cc.lbl,cx,py+ph/2);
+  ctx.restore();
+}
+
+function drawLeisureBadge(ctx, logo, x, y, bw, bh) {
+  ctx.save();
+  // Teal rounded rect
+  const r = 10;
+  ctx.fillStyle = '#1A8FA0';
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+bw-r,y);
+  ctx.arcTo(x+bw,y,x+bw,y+r,r); ctx.lineTo(x+bw,y+bh-r);
+  ctx.arcTo(x+bw,y+bh,x+bw-r,y+bh,r); ctx.lineTo(x+r,y+bh);
+  ctx.arcTo(x,y+bh,x,y+bh-r,r); ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r); ctx.closePath(); ctx.fill();
+  // Leisure logo inside with padding
+  if (logo) {
+    const pad = 6;
+    ctx.drawImage(logo, x+pad, y+pad, bw-pad*2, bh-pad*2);
+  }
   ctx.restore();
 }
 
