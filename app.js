@@ -374,7 +374,10 @@ async function loadTemplateConfigs() {
 }
 
 function getTemplateLayers(catId, fmt) {
-  const key = catId + '-' + (fmt === 'reel' ? 'reel' : 'sq');
+  const suffix = fmt === 'reel' ? 'reel' : 'sq';
+  // entertainment/lifestyle both fall back to the leisure template
+  const resolvedCat = (catId === 'entertainment' || catId === 'lifestyle') ? 'leisure' : catId;
+  const key = resolvedCat + '-' + suffix;
   return _tmplConfigs[key]?.layers || null;
 }
 
