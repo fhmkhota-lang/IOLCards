@@ -626,7 +626,8 @@ function drawTemplateLayersSync(ctx, layers) {
     if (!layer.visible) continue;
     const img = _layerImgCache[layer.id];
     if (!img) continue;
-    const aspect = img.width / img.height;
+    const aspect = (img.naturalWidth || img.width) / (img.naturalHeight || img.height);
+    // Layer coords are in 1080px canvas space — use directly
     const drawW = layer.w;
     const drawH = drawW / aspect;
     ctx.save();

@@ -466,7 +466,7 @@
         </div>
         <div class="ctrl-row">
           <label>Width</label>
-          <input type="range" id="sl-w" min="20" max="1080" step="1" oninput="updateSelectedLayer('w',this.value)">
+          <input type="range" id="sl-w" min="20" max="1080" step="2" oninput="updateSelectedLayer('w',this.value)">
           <span class="val" id="sl-w-val">200</span>
         </div>
         <div class="ctrl-row">
@@ -819,9 +819,9 @@ function handleNewLayerFile(input) {
       id,
       name: file.name.replace(/\.[^.]+$/, ''),
       type: 'image',
-      x: Math.round(W/2 - 160),
-      y: H - 200,
-      w: 320,
+      x: Math.round(W/2 - 200),
+      y: H - 250,
+      w: 400,
       opacity: 100,
       visible: true,
       file: file.name,
