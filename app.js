@@ -155,6 +155,7 @@ let d = {
    FEED
    ════════════════════════════════════════════ */
 async function loadStories(refresh) {
+  if (Object.keys(_tmplConfigs).length === 0) loadTemplateConfigs(); // async, non-blocking
   const grid=$id('stories-grid'), status=$id('feed-status'), btn=$id('refresh-btn');
   if(btn)btn.classList.add('spin');
   if(refresh)visible=PAGE_SZ;
@@ -204,6 +205,8 @@ $id('refresh-btn')?.addEventListener('click',()=>loadStories(true));
    DESIGNER OPEN/CLOSE
    ════════════════════════════════════════════ */
 async function openDesigner(story) {
+  // Ensure template configs loaded
+  if (Object.keys(_tmplConfigs).length === 0) await loadTemplateConfigs();
   d.cat=story.cat||'news'; d.kicker=autoKicker(story.headline,story.cat);
   d.headline=story.headline||''; d.imgUrl=story.image||'';
   d.storyUrl=story.url||''; d.shortUrl='';
@@ -352,8 +355,34 @@ function buildShareText(){
 /* ════════════════════════════════════════════
    RENDER BOTH CARDS
    ════════════════════════════════════════════ */
+
+/* ── TEMPLATE ADMIN: load saved logo layers from Supabase ── */
+let _tmplConfigs = {};
+async function loadTemplateConfigs() {
+  try {
+    const res = await fetch(SUPA_URL + '/rest/v1/card_templates?select=*', {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      rows.forEach(row => {
+        _tmplConfigs[row.template_id] = typeof row.config === 'string'
+          ? JSON.parse(row.config) : row.config;
+      });
+    }
+  } catch(e) { console.warn('Template config load failed', e); }
+}
+
+function getTemplateLayers(catId, fmt) {
+  const key = catId + '-' + (fmt === 'reel' ? 'reel' : 'sq');
+  return _tmplConfigs[key]?.layers || null;
+}
+
 async function renderBoth() {
   const [logoIOL, logoLeisure, logoVertical] = await Promise.all([getLogoIOL(), getLogoLeisure(), getVerticalLogo(d.type==='carousel'&&d.slides.length>0?d.slides[d.slide].cat:d.cat)]);
+  const catKey = d.type==='carousel'&&d.slides.length>0?d.slides[d.slide].cat:d.cat;
+  await preloadTemplateLayers(catKey, 'sq');
+  await preloadTemplateLayers(catKey, 'reel');
   const sl = curSlide();
   const p = {
     kicker:        sl.kicker        || d.kicker        || '',
@@ -411,7 +440,13 @@ function drawStandardSq(ctx, p, cc) {
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   // IOL logo + pill
-  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
+  // Draw custom logo layers from admin panel if configured
+  const sqLayers = getTemplateLayers(p.cat, 'sq');
+  if (sqLayers && sqLayers.length > 0) {
+    drawTemplateLayersSync(ctx, sqLayers);
+  } else {
+    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
+  }
 }
 
 /* ════════════════════════════════════════════
@@ -441,7 +476,13 @@ function drawStandardReel(ctx, p, cc) {
   ctx.restore();
 
   // IOL logo + pill — top RIGHT (reel format)
-  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
+  // Draw custom logo layers from admin panel if configured
+  const reelLayers = getTemplateLayers(p.cat, 'reel');
+  if (reelLayers && reelLayers.length > 0) {
+    drawTemplateLayersSync(ctx, reelLayers);
+  } else {
+    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
+  }
 }
 
 /* ════════════════════════════════════════════
@@ -463,7 +504,13 @@ function drawLeisureSq(ctx, p, cc) {
 
   // IOL Leisure logo top-left
   // Leisure badge square — top-left, teal bg, leisure logo inside
-  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
+  // Draw custom logo layers from admin panel if configured
+  const sqLayers = getTemplateLayers(p.cat, 'sq');
+  if (sqLayers && sqLayers.length > 0) {
+    drawTemplateLayersSync(ctx, sqLayers);
+  } else {
+    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
+  }
 
   // Headline (hot pink, bold, left-aligned, large)
   const padL=52, maxW=W-padL-48;
@@ -495,7 +542,13 @@ function drawLeisureReel(ctx, p, cc) {
 
   // IOL Leisure logo top-right (bigger on tall format)
   // Leisure badge reel — top-right, teal bg, leisure logo inside
-  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
+  // Draw custom logo layers from admin panel if configured
+  const reelLayers = getTemplateLayers(p.cat, 'reel');
+  if (reelLayers && reelLayers.length > 0) {
+    drawTemplateLayersSync(ctx, reelLayers);
+  } else {
+    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
+  }
 
   // Headline
   const padL=56, maxW=W-padL-56;
@@ -551,6 +604,39 @@ function drawTextBlock(ctx, headline, caption, headlineColor, W, H, logoZone, te
   ctx.fillStyle=headlineColor||'#FFFFFF';
   hlLines.forEach((ln,i)=>ctx.fillText(ln,W/2,blockTop+(i+1)*hlLH));
   ctx.restore();
+}
+
+
+/* Draw layers from admin template config */
+const _layerImgCache = {};
+
+async function preloadTemplateLayers(cat, fmt) {
+  const layers = getTemplateLayers(cat, fmt);
+  if (!layers) return;
+  for (const layer of layers) {
+    if (!layer.visible || !layer.b64 || _layerImgCache[layer.id]) continue;
+    await new Promise(res => {
+      const img = new Image();
+      img.onload = () => { _layerImgCache[layer.id] = img; res(); };
+      img.onerror = res;
+      img.src = layer.b64;
+    });
+  }
+}
+
+function drawTemplateLayersSync(ctx, layers) {
+  for (const layer of layers) {
+    if (!layer.visible) continue;
+    const img = _layerImgCache[layer.id];
+    if (!img) continue;
+    const aspect = img.width / img.height;
+    const drawW = layer.w;
+    const drawH = drawW / aspect;
+    ctx.save();
+    ctx.globalAlpha = (layer.opacity ?? 100) / 100;
+    ctx.drawImage(img, layer.x, layer.y, drawW, drawH);
+    ctx.restore();
+  }
 }
 
 /* ── VERTICAL BADGE — drawn from SVG-rendered logo, natural aspect ratio ── */

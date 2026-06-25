@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IOL Cards · Template Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --surface3: #252535;
+    --border: #2e2e45;
+    --accent: #e8192c;
+    --accent2: #ff4d5e;
+    --text: #f0f0f8;
+    --muted: #7070a0;
+    --green: #00c851;
+    --blue: #2979ff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Poppins', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header .logo {
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  header .logo span { color: var(--text); }
+  header .sep { width: 1px; height: 24px; background: var(--border); }
+  header h1 { font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  header .spacer { flex: 1; }
+  header .save-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s;
+  }
+  header .save-btn:hover { background: var(--accent2); }
+  header .save-btn.saved { background: var(--green); }
+  header .status {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── LAYOUT ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px 1fr 320px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* ── LEFT: TEMPLATE LIST ── */
+  .tmpl-list {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px 0;
+  }
+  .tmpl-list h2 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 8px 16px 4px;
+  }
+  .tmpl-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.12s;
+  }
+  .tmpl-item:hover { background: var(--surface2); }
+  .tmpl-item.active {
+    background: var(--surface2);
+    border-left-color: var(--accent);
+  }
+  .tmpl-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .tmpl-item .tmpl-name {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .tmpl-item .tmpl-type {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── CENTRE: CANVAS PREVIEW ── */
+  .canvas-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 24px;
+    gap: 16px;
+    overflow-y: auto;
+    background: #080810;
+  }
+  .canvas-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 4px;
+    border: 1px solid var(--border);
+  }
+  .canvas-tabs button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .canvas-tabs button.active {
+    background: var(--surface3);
+    color: var(--text);
+  }
+  .canvas-wrap {
+    position: relative;
+    cursor: crosshair;
+  }
+  .canvas-wrap canvas {
+    border-radius: 4px;
+    display: block;
+  }
+  /* Draggable element overlays */
+  .overlay-handle {
+    position: absolute;
+    border: 2px dashed rgba(255,255,255,0.5);
+    border-radius: 4px;
+    cursor: move;
+    background: transparent;
+    transition: border-color 0.12s;
+  }
+  .overlay-handle:hover { border-color: #fff; }
+  .overlay-handle.selected { border-color: var(--accent); }
+  .overlay-handle .resize-br {
+    position: absolute;
+    bottom: -5px; right: -5px;
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 2px;
+    cursor: se-resize;
+  }
+  .canvas-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── RIGHT: CONTROLS ── */
+  .controls {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .ctrl-section h3 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 8px;
+  }
+  .ctrl-row label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 70px;
+  }
+  .ctrl-row input[type=range] {
+    flex: 1;
+    accent-color: var(--accent);
+    height: 4px;
+  }
+  .ctrl-row .val {
+    font-size: 11px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-width: 42px;
+    text-align: right;
+  }
+  .ctrl-row input[type=number] {
+    width: 72px;
+    background: var(--surface3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 5px 8px;
+    text-align: right;
+  }
+
+  /* Logo slots */
+  .logo-slots { display: flex; flex-direction: column; gap: 8px; }
+  .logo-slot {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: border-color 0.12s;
+    position: relative;
+  }
+  .logo-slot:hover { border-color: var(--accent); }
+  .logo-slot.has-logo { border-color: var(--green); }
+  .logo-slot-preview {
+    width: 48px; height: 36px;
+    border-radius: 4px;
+    background: var(--surface3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .logo-slot-preview img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;
+  }
+  .logo-slot-info { flex: 1; min-width: 0; }
+  .logo-slot-info .slot-name { font-size: 12px; font-weight: 600; }
+  .logo-slot-info .slot-file {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .logo-slot-del {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 2px 4px;
+  }
+  .logo-slot-del:hover { color: var(--accent); }
+  .upload-input { display: none; }
+
+  /* Add layer button */
+  .add-layer-btn {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    font-family: 'Poppins', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .add-layer-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface3); }
+
+  /* Layer list */
+  .layer-list { display: flex; flex-direction: column; gap: 4px; }
+  .layer-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.12s;
+  }
+  .layer-item:hover { border-color: var(--accent); }
+  .layer-item.selected { border-color: var(--accent); background: var(--surface3); }
+  .layer-icon { font-size: 16px; flex-shrink: 0; }
+  .layer-info { flex: 1; min-width: 0; }
+  .layer-info .lname { font-size: 12px; font-weight: 600; }
+  .layer-info .lpos {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .layer-vis {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px;
+  }
+  .layer-del {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px;
+  }
+  .layer-del:hover { color: var(--accent); }
+
+  /* Selected layer controls */
+  .selected-layer-controls {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    display: none;
+  }
+  .selected-layer-controls.visible { display: block; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--green);
+    color: #000;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 12px 20px;
+    border-radius: 8px;
+    transform: translateY(80px);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+  }
+  .toast.show { transform: translateY(0); }
+  .toast.error { background: var(--accent); color: #fff; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">IOL<span>Cards</span></div>
+  <div class="sep"></div>
+  <h1>Template Admin</h1>
+  <div class="spacer"></div>
+  <span class="status" id="status-text">Select a template to begin</span>
+  <button class="save-btn" id="save-btn" onclick="saveTemplate()">
+    <span>💾</span> Save Template
+  </button>
+</header>
+
+<div class="layout">
+
+  <!-- LEFT: Template list -->
+  <nav class="tmpl-list">
+    <h2>Card Templates</h2>
+    <h2 style="margin-top:12px">Square 1080×1080</h2>
+    <div id="sq-list"></div>
+    <h2 style="margin-top:12px">Reel 1080×1920</h2>
+    <div id="reel-list"></div>
+  </nav>
+
+  <!-- CENTRE: Canvas preview -->
+  <div class="canvas-area">
+    <div class="canvas-tabs">
+      <button class="active" onclick="setView('preview')">Preview</button>
+      <button onclick="setView('edit')">Edit Mode</button>
+    </div>
+    <div class="canvas-wrap" id="canvas-wrap">
+      <canvas id="preview-canvas" width="540" height="540"></canvas>
+    </div>
+    <p class="canvas-hint" id="canvas-hint">Select a template from the left panel</p>
+  </div>
+
+  <!-- RIGHT: Controls -->
+  <aside class="controls">
+
+    <div class="ctrl-section">
+      <h3>🎨 Layers</h3>
+      <div class="layer-list" id="layer-list"></div>
+      <br>
+      <button class="add-layer-btn" onclick="addImageLayer()">
+        ＋ Add Image / Logo Layer
+      </button>
+    </div>
+
+    <div class="ctrl-section" id="selected-layer-section" style="display:none">
+      <h3>✏️ Selected Layer</h3>
+      <div class="selected-layer-controls visible" id="sel-controls">
+
+        <div class="ctrl-row">
+          <label>X</label>
+          <input type="range" id="sl-x" min="0" max="1080" step="1" oninput="updateSelectedLayer('x',this.value)">
+          <span class="val" id="sl-x-val">0</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Y</label>
+          <input type="range" id="sl-y" min="0" max="1080" step="1" oninput="updateSelectedLayer('y',this.value)">
+          <span class="val" id="sl-y-val">0</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Width</label>
+          <input type="range" id="sl-w" min="20" max="1080" step="1" oninput="updateSelectedLayer('w',this.value)">
+          <span class="val" id="sl-w-val">200</span>
+        </div>
+        <div class="ctrl-row">
+          <label>Opacity</label>
+          <input type="range" id="sl-op" min="0" max="100" step="1" oninput="updateSelectedLayer('opacity',this.value)">
+          <span class="val" id="sl-op-val">100%</span>
+        </div>
+
+        <div class="ctrl-row" style="margin-top:12px">
+          <label>Anchor</label>
+          <div id="anchor-grid" style="display:grid;grid-template-columns:repeat(3,28px);gap:3px;">
+          </div>
+        </div>
+
+        <input class="upload-input" type="file" id="sl-file-input" accept="image/png,image/jpeg,image/svg+xml" onchange="handleLayerFileChange(this)">
+        <button class="add-layer-btn" style="margin-top:10px" onclick="document.getElementById('sl-file-input').click()">
+          📁 Replace Image
+        </button>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <h3>📐 Text Zones</h3>
+      <div class="ctrl-row">
+        <label>Headline</label>
+        <select id="tz-headline" onchange="updateTextZone()" style="background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-family:'Poppins',sans-serif;font-size:12px;flex:1">
+          <option value="top">Top</option>
+          <option value="mid" selected>Middle</option>
+          <option value="bot">Bottom</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <h3>ℹ️ Template Info</h3>
+      <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;line-height:1.7" id="tmpl-info">
+        No template selected
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<!-- Hidden file input for adding new layers -->
+<input class="upload-input" type="file" id="new-layer-input" accept="image/png,image/jpeg,image/svg+xml" onchange="handleNewLayerFile(this)">
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── SUPABASE CONFIG ──────────────────────────────────────────────
+const SUPA_URL = 'https://asipandmcgagpswsgbtr.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzaXBhbmRtY2dhZ3Bzd3NnYnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwMjIwNzgsImV4cCI6MjA2MTU5ODA3OH0.HiGMOAfHKUnl5pdKmgs3kIixh3yQyIm_vBBFNBfxnl4';
+
+// ── TEMPLATE DEFINITIONS ─────────────────────────────────────────
+const CATEGORIES = [
+  { id:'news',        label:'News',       col:'#E8192C', style:'standard' },
+  { id:'politics',    label:'Politics',   col:'#E8192C', style:'standard' },
+  { id:'sport',       label:'Sport',      col:'#00A651', style:'standard' },
+  { id:'business',    label:'Business',   col:'#1565C0', style:'standard' },
+  { id:'technology',  label:'Tech',       col:'#1565C0', style:'standard' },
+  { id:'motoring',    label:'Motoring',   col:'#F26522', style:'standard' },
+  { id:'travel',      label:'Travel',     col:'#F5A623', style:'standard' },
+  { id:'leisure',     label:'Leisure',    col:'#1A8FA0', style:'leisure'  },
+];
+
+// State
+let currentTmpl = null;  // { id, format, cat }
+let currentView = 'preview';
+let selectedLayer = null;
+let templates = {};       // { 'news-sq': { layers: [...], textPos: 'mid' } }
+let imageCache = {};      // b64 data URIs keyed by layer id
+
+// ── INIT ─────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  buildTemplateList();
+  await loadTemplatesFromSupabase();
+  showToast('Templates loaded', false);
+});
+
+function buildTemplateList() {
+  const sqList = document.getElementById('sq-list');
+  const reelList = document.getElementById('reel-list');
+
+  CATEGORIES.forEach(cat => {
+    ['sq','reel'].forEach(fmt => {
+      const el = document.createElement('div');
+      el.className = 'tmpl-item';
+      el.dataset.id = `${cat.id}-${fmt}`;
+      el.innerHTML = `
+        <div class="tmpl-dot" style="background:${cat.col}"></div>
+        <div>
+          <div class="tmpl-name">${cat.label}</div>
+          <div class="tmpl-type">${fmt === 'sq' ? '1080×1080' : '1080×1920'}</div>
+        </div>`;
+      el.onclick = () => selectTemplate(cat.id, fmt, cat);
+      (fmt === 'sq' ? sqList : reelList).appendChild(el);
+    });
+  });
+}
+
+async function loadTemplatesFromSupabase() {
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/card_templates?select=*`, {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      rows.forEach(row => {
+        templates[row.template_id] = row.config;
+      });
+    }
+  } catch(e) {
+    console.warn('Supabase load failed, using defaults', e);
+  }
+}
+
+// ── SELECT TEMPLATE ──────────────────────────────────────────────
+function selectTemplate(catId, fmt, cat) {
+  currentTmpl = { id: `${catId}-${fmt}`, catId, fmt, cat };
+  selectedLayer = null;
+
+  // Mark active
+  document.querySelectorAll('.tmpl-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-id="${currentTmpl.id}"]`)?.classList.add('active');
+
+  // Ensure template has a layers array
+  if (!templates[currentTmpl.id]) {
+    templates[currentTmpl.id] = {
+      layers: getDefaultLayers(catId, fmt),
+      textPos: 'bot'
+    };
+  }
+
+  // Set canvas size
+  const isReel = fmt === 'reel';
+  const W = 540, H = isReel ? 960 : 540;
+  const canvas = document.getElementById('preview-canvas');
+  canvas.width = W; canvas.height = H;
+
+  document.getElementById('canvas-hint').textContent =
+    `${cat.label} · ${fmt === 'sq' ? '1080×1080' : '1080×1920'} · Drag layers to reposition`;
+
+  document.getElementById('tmpl-info').innerHTML =
+    `id: ${currentTmpl.id}<br>cat: ${catId}<br>fmt: ${fmt}<br>style: ${cat.style}<br>color: ${cat.col}`;
+
+  document.getElementById('status-text').textContent = `Editing: ${cat.label} ${fmt.toUpperCase()}`;
+
+  renderLayerList();
+  renderCanvas();
+}
+
+function getDefaultLayers(catId, fmt) {
+  const isReel = fmt === 'reel';
+  const W = 1080, H = isReel ? 1920 : 1080;
+  return [
+    {
+      id: 'logo-' + Date.now(),
+      name: `${catId} logo`,
+      type: 'logo',
+      x: Math.round(W/2 - 160),
+      y: H - 180,
+      w: 320,
+      opacity: 100,
+      visible: true,
+      file: null,
+      b64: null,
+      anchor: 'bottom-center'
+    }
+  ];
+}
+
+// ── CANVAS RENDER ────────────────────────────────────────────────
+function renderCanvas() {
+  if (!currentTmpl) return;
+  const canvas = document.getElementById('preview-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const scale = W / 1080;  // preview scale
+
+  const tmpl = templates[currentTmpl.id];
+  const cat = currentTmpl.cat;
+
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+
+  // Gradient overlay (simulated)
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, 'rgba(0,0,0,0.3)');
+  g.addColorStop(0.5, 'rgba(0,0,0,0.5)');
+  g.addColorStop(1, 'rgba(0,0,0,0.85)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Left accent bar
+  ctx.fillStyle = cat.col;
+  ctx.fillRect(0, 0, Math.round(6 * scale), H);
+
+  // Placeholder text
+  ctx.fillStyle = '#fff';
+  ctx.font = `${Math.round(700)} ${Math.round(28 * scale)}px Poppins,sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Headline text preview', W/2, H * 0.45);
+  ctx.font = `${Math.round(22 * scale)}px Poppins,sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('Second line of headline', W/2, H * 0.45 + 36 * scale);
+
+  // Draw layers
+  (tmpl?.layers || []).forEach((layer, i) => {
+    if (!layer.visible) return;
+    const lx = layer.x * scale;
+    const ly = layer.y * scale;
+    const lw = layer.w * scale;
+
+    if (layer.b64 && imageCache[layer.id]) {
+      const img = imageCache[layer.id];
+      const aspect = img.width / img.height;
+      const lh = lw / aspect;
+      ctx.save();
+      ctx.globalAlpha = (layer.opacity ?? 100) / 100;
+      ctx.drawImage(img, lx, ly, lw, lh);
+      ctx.restore();
+    } else {
+      // Placeholder box
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = cat.col;
+      ctx.fillRect(lx, ly, lw, Math.round(60 * scale));
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#fff';
+      ctx.font = `700 ${Math.round(11 * scale)}px Poppins,sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(layer.name + ' (no image)', lx + lw/2, ly + 30 * scale);
+      ctx.restore();
+    }
+
+    // Selection outline
+    if (selectedLayer === i) {
+      const imgH = imageCache[layer.id]
+        ? (lw / (imageCache[layer.id].width / imageCache[layer.id].height))
+        : 60 * scale;
+      ctx.save();
+      ctx.strokeStyle = '#e8192c';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 3]);
+      ctx.strokeRect(lx - 2, ly - 2, lw + 4, imgH + 4);
+      ctx.restore();
+    }
+  });
+}
+
+// ── LAYER LIST ───────────────────────────────────────────────────
+function renderLayerList() {
+  if (!currentTmpl) return;
+  const tmpl = templates[currentTmpl.id];
+  const list = document.getElementById('layer-list');
+  list.innerHTML = '';
+
+  (tmpl?.layers || []).forEach((layer, i) => {
+    const el = document.createElement('div');
+    el.className = 'layer-item' + (selectedLayer === i ? ' selected' : '');
+    el.innerHTML = `
+      <span class="layer-icon">${layer.b64 ? '🖼️' : '📦'}</span>
+      <div class="layer-info">
+        <div class="lname">${layer.name}</div>
+        <div class="lpos">x:${layer.x} y:${layer.y} w:${layer.w}</div>
+      </div>
+      <button class="layer-vis" title="Toggle visibility" onclick="toggleLayerVis(${i},event)">${layer.visible ? '👁️' : '🙈'}</button>
+      <button class="layer-del" title="Delete layer" onclick="deleteLayer(${i},event)">✕</button>`;
+    el.onclick = () => selectLayer(i);
+    list.appendChild(el);
+  });
+}
+
+function selectLayer(i) {
+  selectedLayer = i;
+  const tmpl = templates[currentTmpl.id];
+  const layer = tmpl.layers[i];
+
+  document.getElementById('selected-layer-section').style.display = 'block';
+  document.getElementById('sl-x').max = currentTmpl.fmt === 'reel' ? 1920 : 1080;
+  document.getElementById('sl-y').max = currentTmpl.fmt === 'reel' ? 1920 : 1080;
+
+  document.getElementById('sl-x').value = layer.x;
+  document.getElementById('sl-y').value = layer.y;
+  document.getElementById('sl-w').value = layer.w;
+  document.getElementById('sl-op').value = layer.opacity ?? 100;
+  document.getElementById('sl-x-val').textContent = layer.x;
+  document.getElementById('sl-y-val').textContent = layer.y;
+  document.getElementById('sl-w-val').textContent = layer.w;
+  document.getElementById('sl-op-val').textContent = (layer.opacity ?? 100) + '%';
+
+  renderLayerList();
+  renderCanvas();
+}
+
+function updateSelectedLayer(prop, value) {
+  if (!currentTmpl || selectedLayer === null) return;
+  const layer = templates[currentTmpl.id].layers[selectedLayer];
+  layer[prop] = parseInt(value);
+
+  document.getElementById(`sl-${prop}-val`).textContent =
+    prop === 'opacity' ? value + '%' : value;
+
+  // Update layer list position display
+  const lpos = document.querySelectorAll('.layer-info .lpos')[selectedLayer];
+  if (lpos) lpos.textContent = `x:${layer.x} y:${layer.y} w:${layer.w}`;
+
+  renderCanvas();
+}
+
+function toggleLayerVis(i, e) {
+  e.stopPropagation();
+  if (!currentTmpl) return;
+  const layer = templates[currentTmpl.id].layers[i];
+  layer.visible = !layer.visible;
+  renderLayerList();
+  renderCanvas();
+}
+
+function deleteLayer(i, e) {
+  e.stopPropagation();
+  if (!currentTmpl) return;
+  templates[currentTmpl.id].layers.splice(i, 1);
+  if (selectedLayer === i) selectedLayer = null;
+  document.getElementById('selected-layer-section').style.display = 'none';
+  renderLayerList();
+  renderCanvas();
+}
+
+// ── ADD / UPLOAD IMAGE LAYER ─────────────────────────────────────
+function addImageLayer() {
+  if (!currentTmpl) { showToast('Select a template first', true); return; }
+  document.getElementById('new-layer-input').click();
+}
+
+function handleNewLayerFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  readFileAsB64(file, (b64) => {
+    const isReel = currentTmpl.fmt === 'reel';
+    const W = 1080, H = isReel ? 1920 : 1080;
+    const id = 'layer-' + Date.now();
+    const newLayer = {
+      id,
+      name: file.name.replace(/\.[^.]+$/, ''),
+      type: 'image',
+      x: Math.round(W/2 - 160),
+      y: H - 200,
+      w: 320,
+      opacity: 100,
+      visible: true,
+      file: file.name,
+      b64
+    };
+    templates[currentTmpl.id].layers.push(newLayer);
+    loadImageIntoCache(id, b64);
+    renderLayerList();
+    renderCanvas();
+    selectLayer(templates[currentTmpl.id].layers.length - 1);
+    input.value = '';
+  });
+}
+
+function handleLayerFileChange(input) {
+  if (!currentTmpl || selectedLayer === null) return;
+  const file = input.files[0];
+  if (!file) return;
+  readFileAsB64(file, (b64) => {
+    const layer = templates[currentTmpl.id].layers[selectedLayer];
+    layer.b64 = b64;
+    layer.file = file.name;
+    layer.name = file.name.replace(/\.[^.]+$/, '');
+    loadImageIntoCache(layer.id, b64);
+    renderLayerList();
+    renderCanvas();
+    input.value = '';
+  });
+}
+
+function readFileAsB64(file, cb) {
+  const reader = new FileReader();
+  reader.onload = e => cb(e.target.result);
+  reader.readAsDataURL(file);
+}
+
+function loadImageIntoCache(id, b64) {
+  const img = new Image();
+  img.onload = () => {
+    imageCache[id] = img;
+    renderCanvas();
+  };
+  img.src = b64;
+}
+
+// ── SAVE TO SUPABASE ─────────────────────────────────────────────
+async function saveTemplate() {
+  if (!currentTmpl) { showToast('Select a template first', true); return; }
+
+  const btn = document.getElementById('save-btn');
+  btn.textContent = '⏳ Saving…';
+  btn.disabled = true;
+
+  const config = templates[currentTmpl.id];
+
+  // Strip b64 from the saved config — we store it separately keyed by layer id
+  // Actually keep b64 in the config so it loads back properly
+  const payload = {
+    template_id: currentTmpl.id,
+    config: JSON.stringify(config),
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/card_templates`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${SUPA_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok || res.status === 201 || res.status === 200) {
+      showToast('✓ Template saved!', false);
+      btn.className = 'save-btn saved';
+      btn.innerHTML = '<span>✓</span> Saved';
+      setTimeout(() => {
+        btn.className = 'save-btn';
+        btn.innerHTML = '<span>💾</span> Save Template';
+        btn.disabled = false;
+      }, 2000);
+    } else {
+      const err = await res.text();
+      throw new Error(err);
+    }
+  } catch(e) {
+    showToast('Save failed: ' + e.message, true);
+    btn.innerHTML = '<span>💾</span> Save Template';
+    btn.disabled = false;
+  }
+}
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.canvas-tabs button').forEach((b,i) => {
+    b.classList.toggle('active', (i===0 && v==='preview') || (i===1 && v==='edit'));
+  });
+  renderCanvas();
+}
+
+function updateTextZone() { renderCanvas(); }
+
+// ── DRAG ON CANVAS ───────────────────────────────────────────────
+const canvas = document.getElementById('preview-canvas');
+let dragging = false, dragLayer = null, dragStart = {};
+
+canvas.addEventListener('mousedown', e => {
+  if (!currentTmpl || selectedLayer === null) return;
+  const r = canvas.getBoundingClientRect();
+  const scale = canvas.width / 1080;
+  dragStart = { mx: e.clientX, my: e.clientY,
+    ox: templates[currentTmpl.id].layers[selectedLayer].x,
+    oy: templates[currentTmpl.id].layers[selectedLayer].y };
+  dragging = true;
+});
+
+window.addEventListener('mousemove', e => {
+  if (!dragging || selectedLayer === null) return;
+  const scale = canvas.width / 1080;
+  const dx = Math.round((e.clientX - dragStart.mx) / scale);
+  const dy = Math.round((e.clientY - dragStart.my) / scale);
+  const layer = templates[currentTmpl.id].layers[selectedLayer];
+  layer.x = dragStart.ox + dx;
+  layer.y = dragStart.oy + dy;
+  document.getElementById('sl-x').value = layer.x;
+  document.getElementById('sl-y').value = layer.y;
+  document.getElementById('sl-x-val').textContent = layer.x;
+  document.getElementById('sl-y-val').textContent = layer.y;
+  renderCanvas();
+});
+
+window.addEventListener('mouseup', () => { dragging = false; });
+
+// ── TOAST ────────────────────────────────────────────────────────
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast' + (isError ? ' error' : ''), 3000);
+}
+</script>
+</body>
+</html>
