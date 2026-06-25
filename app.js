@@ -380,7 +380,7 @@ function drawStandardSq(ctx, p, cc) {
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   // IOL logo + pill
-  drawVerticalBadge(ctx, p.logoIOL, cc, W/2, H-140, 140, 110);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W/2, H-210, 160, 180);
 }
 
 /* ════════════════════════════════════════════
@@ -410,7 +410,7 @@ function drawStandardReel(ctx, p, cc) {
   ctx.restore();
 
   // IOL logo + pill — top RIGHT (reel format)
-  drawVerticalBadge(ctx, p.logoIOL, cc, W-90, 48, 140, 110);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W-100, 44, 160, 180);
 }
 
 /* ════════════════════════════════════════════
@@ -525,50 +525,33 @@ function drawTextBlock(ctx, headline, caption, headlineColor, W, H, logoZone, te
 /* ── VERTICAL BADGE — matches NO_BACKGROUND.png reference ── */
 function drawVerticalBadge(ctx, logo, cc, cx, cy, bw, bh) {
   ctx.save();
+  const x = cx - bw/2, y = cy, r = 14;
 
-  // 1. Rounded rectangle background in category colour
-  const r = 10;
-  const x = cx - bw/2, y = cy;
+  // Rounded rect in category colour
   ctx.fillStyle = cc.col;
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + bw - r, y);
-  ctx.arcTo(x + bw, y,       x + bw, y + r,      r);
-  ctx.lineTo(x + bw, y + bh - r);
-  ctx.arcTo(x + bw, y + bh,  x + bw - r, y + bh, r);
-  ctx.lineTo(x + r,  y + bh);
-  ctx.arcTo(x,       y + bh,  x,       y + bh - r, r);
-  ctx.lineTo(x,      y + r);
-  ctx.arcTo(x,       y,       x + r,   y,          r);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+bw-r, y); ctx.arcTo(x+bw, y, x+bw, y+r, r);
+  ctx.lineTo(x+bw, y+bh-r); ctx.arcTo(x+bw, y+bh, x+bw-r, y+bh, r);
+  ctx.lineTo(x+r, y+bh); ctx.arcTo(x, y+bh, x, y+bh-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath(); ctx.fill();
 
-  // 2. IOL logo — top 60% of badge, centred, with padding
-  const logoPad = bw * 0.1;
-  const logoW = bw - logoPad * 2;
-  const logoH = logoW / 1.308; // maintain exact 1324:1012 ratio
-  const logoX = x + logoPad;
-  const logoY = y + (bh * 0.55 - logoH) / 2; // vertically centre in top 55%
-  if (logo) {
-    ctx.drawImage(logo, logoX, logoY, logoW, logoH);
-  }
+  // IOL logo — top 62%, 85% width, centred
+  const lPad = bw * 0.08;
+  const lW = bw - lPad * 2;
+  const lH = lW / 1.308;
+  const lX = x + lPad;
+  const lY = y + (bh * 0.62 - lH) / 2;
+  if (logo) ctx.drawImage(logo, lX, lY, lW, lH);
 
-  // 3. Divider line
-  const divY = y + bh * 0.58;
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(x + 10, divY);
-  ctx.lineTo(x + bw - 10, divY);
-  ctx.stroke();
-
-  // 4. Category label — bottom 40%, white bold
-  const lblSize = Math.round(bh * 0.24);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `700 ${lblSize}px Poppins,Arial,sans-serif`;
+  // Category label — bottom 38%, big and bold
+  const lblSize = Math.round(bh * 0.28);
+  ctx.fillStyle = '#fff';
+  ctx.font = `800 ${lblSize}px Poppins,Arial Black,sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(cc.lbl, cx, y + bh * 0.79);
+  ctx.fillText(cc.lbl, cx, y + bh * 0.81);
 
   ctx.restore();
 }
