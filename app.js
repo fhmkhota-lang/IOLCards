@@ -233,15 +233,22 @@ async function openDesigner(story) {
   renderBoth();
 
   if(d.imgUrl){
-    // First try to get full-res OG image from the article page
     let bestImgUrl = d.imgUrl;
+    let imgSource = 'rss-thumbnail';
     if(d.storyUrl) {
       try {
         const fr = await fetch(WORKER+'/fullimage?url='+encodeURIComponent(d.storyUrl));
         const frj = await fr.json();
-        if(frj.ok && frj.url) bestImgUrl = frj.url;
-      } catch(e) { /* fall back to RSS image */ }
+        if(frj.ok && frj.url) {
+          bestImgUrl = frj.url;
+          imgSource = 'og-image';
+        }
+      } catch(e) { console.warn('fullimage fetch failed', e); }
     }
+    console.log('[IOLCards] Image source:', imgSource, bestImgUrl.slice(0,80));
+    // Show source in UI briefly
+    const hint = $id('img-quality-hint');
+    if(hint) hint.textContent = imgSource === 'og-image' ? '✓ Full-res image' : '⚠ RSS thumbnail (low-res)';
     const proxy = WORKER+'/image?url='+encodeURIComponent(bestImgUrl);
     d.imgEl = await loadImgCORS(proxy);
     if(!d.imgEl) d.imgEl = await loadImgDirect(bestImgUrl);
@@ -452,13 +459,11 @@ function drawStandardSq(ctx, p, cc) {
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   // IOL logo + pill
-  // Draw custom logo layers from admin panel if configured
+  // Draw vector badge (always crisp)
+  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
+  // Then draw any additional admin template layers on top
   const sqLayers = getTemplateLayers(p.cat, 'sq');
-  if (sqLayers && sqLayers.length > 0) {
-    drawTemplateLayersSync(ctx, sqLayers);
-  } else {
-    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
-  }
+  if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers);
 }
 
 /* ════════════════════════════════════════════
@@ -488,13 +493,11 @@ function drawStandardReel(ctx, p, cc) {
   ctx.restore();
 
   // IOL logo + pill — top RIGHT (reel format)
-  // Draw custom logo layers from admin panel if configured
+  // Draw vector badge (always crisp)
+  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
+  // Then draw any additional admin template layers on top
   const reelLayers = getTemplateLayers(p.cat, 'reel');
-  if (reelLayers && reelLayers.length > 0) {
-    drawTemplateLayersSync(ctx, reelLayers);
-  } else {
-    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
-  }
+  if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers);
 }
 
 /* ════════════════════════════════════════════
@@ -516,13 +519,11 @@ function drawLeisureSq(ctx, p, cc) {
 
   // IOL Leisure logo top-left
   // Leisure badge square — top-left, teal bg, leisure logo inside
-  // Draw custom logo layers from admin panel if configured
+  // Draw vector badge (always crisp)
+  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
+  // Then draw any additional admin template layers on top
   const sqLayers = getTemplateLayers(p.cat, 'sq');
-  if (sqLayers && sqLayers.length > 0) {
-    drawTemplateLayersSync(ctx, sqLayers);
-  } else {
-    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 320);
-  }
+  if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers);
 
   // Headline (hot pink, bold, left-aligned, large)
   const padL=52, maxW=W-padL-48;
@@ -554,13 +555,11 @@ function drawLeisureReel(ctx, p, cc) {
 
   // IOL Leisure logo top-right (bigger on tall format)
   // Leisure badge reel — top-right, teal bg, leisure logo inside
-  // Draw custom logo layers from admin panel if configured
+  // Draw vector badge (always crisp)
+  drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
+  // Then draw any additional admin template layers on top
   const reelLayers = getTemplateLayers(p.cat, 'reel');
-  if (reelLayers && reelLayers.length > 0) {
-    drawTemplateLayersSync(ctx, reelLayers);
-  } else {
-    drawVerticalBadge(ctx, p.logoVertical, cc, W/2, H-20, 280);
-  }
+  if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers);
 
   // Headline
   const padL=56, maxW=W-padL-56;

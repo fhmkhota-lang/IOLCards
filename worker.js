@@ -49,42 +49,51 @@ export default {
     }
 
     if (path === 'fullimage') {
-      // Fetch article page, extract full-res OG image
       const articleUrl = url.searchParams.get('url');
       if (!articleUrl) return j({ok:false,error:'Missing ?url='},400);
       try {
         const res = await fetch(articleUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)',
-            'Accept': 'text/html',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-ZA,en;q=0.9',
+            'Referer': 'https://www.iol.co.za/',
+            'Cache-Control': 'no-cache',
           },
-          cf: { cacheTtl: 3600, cacheEverything: true }
+          cf: { cacheTtl: 1800, cacheEverything: true }
         });
+        if (!res.ok) return j({ok:false, error:'HTTP '+res.status}, 502);
         const html = await res.text();
-        // Try og:image first (highest quality)
         let imgUrl = '';
-        const ogImg = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i)
-                   || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i);
+        // og:image (highest quality, usually 1200px+)
+        const ogImg = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+                   || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
         if (ogImg) imgUrl = ogImg[1];
-        // Fall back to first large article image
+        // twitter:image fallback
         if (!imgUrl) {
-          const srcMatch = html.match(/iol-prod\.appspot\.com\/[^"'\s]+/);
-          if (srcMatch) imgUrl = 'https://' + srcMatch[0];
+          const twImg = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i)
+                     || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+          if (twImg) imgUrl = twImg[1];
+        }
+        // iol-prod.appspot.com image in HTML
+        if (!imgUrl) {
+          const srcMatch = html.match(/https?:\/\/iol-prod\.appspot\.com\/[^"'\s>]+/i);
+          if (srcMatch) imgUrl = srcMatch[0];
         }
         if (imgUrl) {
-          // Strip size params, request 1200px
+          if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
           try {
-            const u = new URL(imgUrl.startsWith('//') ? 'https:' + imgUrl : imgUrl);
-            ['impolicy','wid','hei','fit','op_usm','qlt','fmt'].forEach(p => u.searchParams.delete(p));
+            const u = new URL(imgUrl);
+            ['impolicy','wid','hei','fit','op_usm','qlt','fmt','$staticlink$'].forEach(p => u.searchParams.delete(p));
             u.searchParams.set('wid', '1200');
             return j({ok:true, url: u.toString()});
           } catch(e) {
             return j({ok:true, url: imgUrl});
           }
         }
-        return j({ok:false, error:'No image found'}, 404);
+        return j({ok:false, error:'No og:image found'}, 404);
       } catch(e) {
-        return j({ok:false, error:e.message}, 500);
+        return j({ok:false, error: String(e.message)}, 500);
       }
     }
 
