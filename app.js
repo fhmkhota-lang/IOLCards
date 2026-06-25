@@ -207,7 +207,7 @@ $id('refresh-btn')?.addEventListener('click',()=>loadStories(true));
 async function openDesigner(story) {
   // Ensure template configs loaded
   if (Object.keys(_tmplConfigs).length === 0) await loadTemplateConfigs();
-  d.cat=story.cat||'news'; d.kicker=autoKicker(story.headline,story.cat);
+  d.cat=story.cat||'news'; d.kicker=story.kicker||catCfg(story.cat).lbl||'IOL';
   d.headline=story.headline||''; d.imgUrl=story.image||'';
   d.storyUrl=story.url||''; d.shortUrl='';
   d.sqImgX=0;d.sqImgY=0;d.sqImgScale=1;
@@ -244,7 +244,7 @@ async function openDesigner(story) {
 }
 
 $id('back-btn')?.addEventListener('click',()=>{$id('designer').classList.remove('open');document.body.style.overflow='';renderFeed();});
-function autoKicker(h,c){if(!h)return catCfg(c).lbl;return h.split(' ').slice(0,3).join(' ').toUpperCase();}
+function autoKicker(h,c){return catCfg(c).lbl||'IOL';}
 
 /* ════════════════════════════════════════════
    DESIGNER CONTROLS

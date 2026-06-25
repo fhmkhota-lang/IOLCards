@@ -29,20 +29,16 @@ export default {
     if (path === 'image') {
       let imgUrl = url.searchParams.get('url');
       if (!imgUrl) return new Response('Missing ?url=',{status:400,headers:CORS});
-      // For iol-prod.appspot.com, request largest available size
+      // For iol-prod.appspot.com, strip any size limits and request 1200px wide
       if (imgUrl.includes('iol-prod.appspot.com') || imgUrl.includes('iol.co.za')) {
-        const u = new URL(imgUrl);
-        // Remove thumbnail size params, request full resolution
-        u.searchParams.delete('impolicy');
-        u.searchParams.delete('wid');
-        u.searchParams.delete('hei');
-        u.searchParams.delete('fit');
-        u.searchParams.delete('op_usm');
-        u.searchParams.delete('$staticlink$');
-        // Request large size explicitly
-        u.searchParams.set('impolicy', 'resize');
-        u.searchParams.set('wid', '1280');
-        imgUrl = u.toString();
+        try {
+          const u = new URL(imgUrl);
+          // Clear all existing image transform params
+          ['impolicy','wid','hei','fit','op_usm','qlt','fmt'].forEach(p => u.searchParams.delete(p));
+          // Request full width — IOL's CDN serves up to 1200px
+          u.searchParams.set('wid', '1200');
+          imgUrl = u.toString();
+        } catch(e) { /* malformed URL, use as-is */ }
       }
       try {
         const res = await fetch(imgUrl,{headers:{'User-Agent':'Mozilla/5.0 (compatible; Googlebot/2.1)','Referer':'https://www.iol.co.za/'},cf:{cacheTtl:3600,cacheEverything:true}});
@@ -97,7 +93,15 @@ function parseRSS(xml, section, src) {
     if(!title||title.length<5)continue;
     let cat=section;
     if(link){if(/\/politics\//.test(link))cat='politics';else if(/\/sport\//.test(link))cat='sport';else if(/\/business\//.test(link))cat='business';else if(/\/crime/.test(link))cat='news';else if(/\/motoring\//.test(link))cat='motoring';else if(/\/lifestyle\//.test(link))cat='lifestyle';else if(/\/technology\//.test(link))cat='technology';else if(/\/entertainment\//.test(link))cat='entertainment';}
-    stories.push({headline:strip(title).trim(),excerpt:strip(desc||'').replace(/\s+/g,' ').trim().slice(0,220),category:cat,source:strip(author).trim().slice(0,50)||src,pubDate:pub,url:link?link.trim():'https://www.iol.co.za/'+section+'/',image:imgM?imgM[1]:''});
+    const kicker = (() => {
+      const sectionLabels = {
+        'news':'News','politics':'Politics','sport':'Sport','business':'Business',
+        'technology':'Technology','motoring':'Motoring','travel':'Travel',
+        'entertainment':'Lifestyle','lifestyle':'Lifestyle','leisure':'Leisure'
+      };
+      return sectionLabels[cat] || sectionLabels[section] || src || 'IOL';
+    })();
+    stories.push({headline:strip(title).trim(),excerpt:strip(desc||'').replace(/\s+/g,' ').trim().slice(0,220),category:cat,kicker,source:strip(author).trim().slice(0,50)||src,pubDate:pub,url:link?link.trim():'https://www.iol.co.za/'+section+'/',image:imgM?imgM[1]:''});
   }
   return stories;
 }
