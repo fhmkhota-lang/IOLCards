@@ -380,7 +380,7 @@ function drawStandardSq(ctx, p, cc) {
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   // IOL logo + pill
-  drawVerticalBadge(ctx, p.logoIOL, cc, W/2, H-210, 160, 180);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W/2, H-230, 220, 200);
 }
 
 /* ════════════════════════════════════════════
@@ -410,7 +410,7 @@ function drawStandardReel(ctx, p, cc) {
   ctx.restore();
 
   // IOL logo + pill — top RIGHT (reel format)
-  drawVerticalBadge(ctx, p.logoIOL, cc, W-100, 44, 160, 180);
+  drawVerticalBadge(ctx, p.logoIOL, cc, W-130, 44, 220, 200);
 }
 
 /* ════════════════════════════════════════════
@@ -432,7 +432,7 @@ function drawLeisureSq(ctx, p, cc) {
 
   // IOL Leisure logo top-left
   // Leisure badge square — top-left, teal bg, leisure logo inside
-  drawLeisureBadge(ctx, p.logoLeisure, 44, 36, 160, 110);
+  drawLeisureBadge(ctx, p.logoLeisure, 44, 36, 220, 200);
 
   // Headline (hot pink, bold, left-aligned, large)
   const padL=52, maxW=W-padL-48;
@@ -464,7 +464,7 @@ function drawLeisureReel(ctx, p, cc) {
 
   // IOL Leisure logo top-right (bigger on tall format)
   // Leisure badge reel — top-right, teal bg, leisure logo inside
-  drawLeisureBadge(ctx, p.logoLeisure, W-204, 48, 160, 110);
+  drawLeisureBadge(ctx, p.logoLeisure, W-264, 44, 220, 200);
 
   // Headline
   const padL=56, maxW=W-padL-56;
@@ -522,39 +522,40 @@ function drawTextBlock(ctx, headline, caption, headlineColor, W, H, logoZone, te
   ctx.restore();
 }
 
-/* ── VERTICAL BADGE — matches NO_BACKGROUND.png reference ── */
+/* ── VERTICAL BADGE ── */
 function drawVerticalBadge(ctx, logo, cc, cx, cy, bw, bh) {
+  const x = cx - bw/2, y = cy, r = 16;
   ctx.save();
-  const x = cx - bw/2, y = cy, r = 14;
 
-  // Rounded rect in category colour
+  // Rounded rect
   ctx.fillStyle = cc.col;
   ctx.beginPath();
   ctx.moveTo(x+r, y);
-  ctx.lineTo(x+bw-r, y); ctx.arcTo(x+bw, y, x+bw, y+r, r);
-  ctx.lineTo(x+bw, y+bh-r); ctx.arcTo(x+bw, y+bh, x+bw-r, y+bh, r);
-  ctx.lineTo(x+r, y+bh); ctx.arcTo(x, y+bh, x, y+bh-r, r);
-  ctx.lineTo(x, y+r); ctx.arcTo(x, y, x+r, y, r);
-  ctx.closePath(); ctx.fill();
+  ctx.lineTo(x+bw-r, y); ctx.arcTo(x+bw,y, x+bw,y+r, r);
+  ctx.lineTo(x+bw, y+bh-r); ctx.arcTo(x+bw,y+bh, x+bw-r,y+bh, r);
+  ctx.lineTo(x+r, y+bh); ctx.arcTo(x,y+bh, x,y+bh-r, r);
+  ctx.lineTo(x, y+r); ctx.arcTo(x,y, x+r,y, r);
+  ctx.closePath();
+  ctx.fill();
 
-  // IOL logo — top 62%, 85% width, centred
-  const lPad = bw * 0.08;
-  const lW = bw - lPad * 2;
-  const lH = lW / 1.308;
-  const lX = x + lPad;
-  const lY = y + (bh * 0.62 - lH) / 2;
-  if (logo) ctx.drawImage(logo, lX, lY, lW, lH);
+  // IOL logo — 88% wide, sitting in top 60% of badge
+  if (logo) {
+    const lw = bw * 0.88;
+    const lh = lw / 1.308;
+    const lx = x + (bw - lw) / 2;
+    const ly = y + (bh * 0.60 - lh) / 2;
+    ctx.drawImage(logo, lx, ly, lw, lh);
+  }
 
-  // Category label — bottom 38%, big and bold
-  const lblSize = Math.round(bh * 0.28);
+  // Label — bold, bottom 32%
   ctx.fillStyle = '#fff';
-  ctx.font = `800 ${lblSize}px Poppins,Arial Black,sans-serif`;
+  ctx.font = '800 ' + Math.round(bh * 0.26) + 'px Poppins,Arial Black,sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(cc.lbl, cx, y + bh * 0.81);
-
+  ctx.fillText(cc.lbl, cx, y + bh * 0.82);
   ctx.restore();
 }
+
 
 function drawIOLBadge(ctx, logo, cc, cx, ly, lw, lh) {
   if(logo){
@@ -574,9 +575,8 @@ function drawIOLBadge(ctx, logo, cc, cx, ly, lw, lh) {
 }
 
 function drawLeisureBadge(ctx, logo, x, y, bw, bh) {
+  const r = 16;
   ctx.save();
-  // Teal rounded rect
-  const r = 10;
   ctx.fillStyle = '#1A8FA0';
   ctx.beginPath();
   ctx.moveTo(x+r,y); ctx.lineTo(x+bw-r,y);
@@ -584,9 +584,9 @@ function drawLeisureBadge(ctx, logo, x, y, bw, bh) {
   ctx.arcTo(x+bw,y+bh,x+bw-r,y+bh,r); ctx.lineTo(x+r,y+bh);
   ctx.arcTo(x,y+bh,x,y+bh-r,r); ctx.lineTo(x,y+r);
   ctx.arcTo(x,y,x+r,y,r); ctx.closePath(); ctx.fill();
-  // Leisure logo inside with padding
+  // Leisure logo — fill the badge with small padding
   if (logo) {
-    const pad = 6;
+    const pad = bw * 0.06;
     ctx.drawImage(logo, x+pad, y+pad, bw-pad*2, bh-pad*2);
   }
   ctx.restore();
