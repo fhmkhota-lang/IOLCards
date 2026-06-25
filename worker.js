@@ -48,6 +48,46 @@ export default {
       } catch(e){return new Response('Error:'+e.message,{status:500,headers:CORS});}
     }
 
+    if (path === 'fullimage') {
+      // Fetch article page, extract full-res OG image
+      const articleUrl = url.searchParams.get('url');
+      if (!articleUrl) return j({ok:false,error:'Missing ?url='},400);
+      try {
+        const res = await fetch(articleUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1)',
+            'Accept': 'text/html',
+          },
+          cf: { cacheTtl: 3600, cacheEverything: true }
+        });
+        const html = await res.text();
+        // Try og:image first (highest quality)
+        let imgUrl = '';
+        const ogImg = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["'][^>]*>/i)
+                   || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["'][^>]*>/i);
+        if (ogImg) imgUrl = ogImg[1];
+        // Fall back to first large article image
+        if (!imgUrl) {
+          const srcMatch = html.match(/iol-prod\.appspot\.com\/[^"'\s]+/);
+          if (srcMatch) imgUrl = 'https://' + srcMatch[0];
+        }
+        if (imgUrl) {
+          // Strip size params, request 1200px
+          try {
+            const u = new URL(imgUrl.startsWith('//') ? 'https:' + imgUrl : imgUrl);
+            ['impolicy','wid','hei','fit','op_usm','qlt','fmt'].forEach(p => u.searchParams.delete(p));
+            u.searchParams.set('wid', '1200');
+            return j({ok:true, url: u.toString()});
+          } catch(e) {
+            return j({ok:true, url: imgUrl});
+          }
+        }
+        return j({ok:false, error:'No image found'}, 404);
+      } catch(e) {
+        return j({ok:false, error:e.message}, 500);
+      }
+    }
+
     if (path === 'shorten') {
       const longUrl = url.searchParams.get('url');
       if (!longUrl) return j({ok:false,error:'Missing ?url='},400);
