@@ -27,8 +27,23 @@ export default {
     }
 
     if (path === 'image') {
-      const imgUrl = url.searchParams.get('url');
+      let imgUrl = url.searchParams.get('url');
       if (!imgUrl) return new Response('Missing ?url=',{status:400,headers:CORS});
+      // For iol-prod.appspot.com, request largest available size
+      if (imgUrl.includes('iol-prod.appspot.com') || imgUrl.includes('iol.co.za')) {
+        const u = new URL(imgUrl);
+        // Remove thumbnail size params, request full resolution
+        u.searchParams.delete('impolicy');
+        u.searchParams.delete('wid');
+        u.searchParams.delete('hei');
+        u.searchParams.delete('fit');
+        u.searchParams.delete('op_usm');
+        u.searchParams.delete('$staticlink$');
+        // Request large size explicitly
+        u.searchParams.set('impolicy', 'resize');
+        u.searchParams.set('wid', '1280');
+        imgUrl = u.toString();
+      }
       try {
         const res = await fetch(imgUrl,{headers:{'User-Agent':'Mozilla/5.0 (compatible; Googlebot/2.1)','Referer':'https://www.iol.co.za/'},cf:{cacheTtl:3600,cacheEverything:true}});
         if (!res.ok) return new Response('Failed:'+res.status,{status:res.status,headers:CORS});
@@ -75,7 +90,10 @@ function parseRSS(xml, section, src) {
     const item=m[1];
     const title=cdata(item,'title'), link=tag(item,'link')||tag(item,'guid');
     const desc=cdata(item,'description'), author=cdata(item,'author')||src, pub=tag(item,'pubDate')||'';
-    const imgM=item.match(/<media:content[\s\S]*?url="([^"]+)"/i)||item.match(/<media:thumbnail[\s\S]*?url="([^"]+)"/i);
+    // Try enclosure first (often higher res), fall back to media:content / media:thumbnail
+    const encM=item.match(/<enclosure[^>]*url="([^"]+)"/i);
+    const mediaM=item.match(/<media:content[\s\S]*?url="([^"]+)"/i)||item.match(/<media:thumbnail[\s\S]*?url="([^"]+)"/i);
+    const imgM = encM || mediaM;
     if(!title||title.length<5)continue;
     let cat=section;
     if(link){if(/\/politics\//.test(link))cat='politics';else if(/\/sport\//.test(link))cat='sport';else if(/\/business\//.test(link))cat='business';else if(/\/crime/.test(link))cat='news';else if(/\/motoring\//.test(link))cat='motoring';else if(/\/lifestyle\//.test(link))cat='lifestyle';else if(/\/technology\//.test(link))cat='technology';else if(/\/entertainment\//.test(link))cat='entertainment';}
