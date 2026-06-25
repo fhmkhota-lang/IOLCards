@@ -427,6 +427,7 @@ async function renderBoth() {
   if (csq) {
     csq.width=SQ; csq.height=SQ;
     const ctx=csq.getContext('2d');
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
     if(cc.style==='leisure') drawLeisureSq(ctx,p,cc);
     else drawStandardSq(ctx,p,cc);
   }
@@ -436,6 +437,7 @@ async function renderBoth() {
   if (creel) {
     creel.width=RW; creel.height=RH;
     const ctx=creel.getContext('2d');
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
     if(cc.style==='leisure') drawLeisureReel(ctx,p,cc);
     else drawStandardReel(ctx,p,cc);
   }
@@ -644,74 +646,44 @@ function drawTemplateLayersSync(ctx, layers) {
     const drawW = layer.w;
     const drawH = drawW / aspect;
     ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.globalAlpha = (layer.opacity ?? 100) / 100;
     ctx.drawImage(img, layer.x, layer.y, drawW, drawH);
     ctx.restore();
   }
 }
 
-/* ── VERTICAL BADGE — pure canvas vector, crisp at any size ── */
+/* ── VERTICAL BADGE — just the coloured category banner ── */
 function drawVerticalBadge(ctx, logoImg, cc, cx, cy, bw) {
-  // bw = total width of the badge
-  // cy = bottom edge of badge
-  const bh = bw * 0.55;          // total badge height
-  const markH = bh * 0.52;       // IOL mark top section height
-  const bannerH = bh * 0.48;     // coloured banner bottom section height
+  // Draw the extracted logo image from admin panel if available
+  if (logoImg) {
+    const aspect = (logoImg.naturalWidth || logoImg.width) / (logoImg.naturalHeight || logoImg.height);
+    const drawW = bw;
+    const drawH = drawW / aspect;
+    ctx.drawImage(logoImg, cx - drawW / 2, cy - drawH, drawW, drawH);
+    return;
+  }
+  // Fallback: plain coloured trapezoid banner with category label only
+  const bh = Math.round(bw * 0.22);
   const x = cx - bw / 2;
   const top = cy - bh;
-
+  const slant = bw * 0.04;
   ctx.save();
-
-  // ── 1. IOL MARK (top section, transparent bg) ──────────────────
-  // Lightning bolt / tick mark above the letters
-  const boltW = bw * 0.08;
-  const boltX = cx - boltW * 0.5;
-  const boltTop = top + markH * 0.02;
-  const boltMid = top + markH * 0.38;
-  const boltBot = top + markH * 0.52;
-
   ctx.fillStyle = cc.col;
   ctx.beginPath();
-  ctx.moveTo(boltX,              boltTop);
-  ctx.lineTo(boltX + boltW,      boltTop);
-  ctx.lineTo(boltX + boltW * 0.35, boltMid);
-  ctx.lineTo(boltX + boltW,      boltMid);
-  ctx.lineTo(boltX,              boltBot);
-  ctx.lineTo(boltX + boltW * 0.65, boltMid);
-  ctx.lineTo(boltX,              boltMid);
+  ctx.moveTo(x + slant,      top);
+  ctx.lineTo(x + bw - slant, top);
+  ctx.lineTo(x + bw,         top + bh);
+  ctx.lineTo(x,              top + bh);
   ctx.closePath();
   ctx.fill();
-
-  // "IOL" text — white, bold
-  const fontSize = Math.round(bw * 0.28);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `900 ${fontSize}px Poppins,Arial Black,sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText('IOL', cx, top + markH * 0.92);
-
-  // ── 2. COLOURED TRAPEZOID BANNER (bottom section) ──────────────
-  const bx = x;
-  const by = top + markH;
-  const slant = bw * 0.05;  // trapezoid inset on each side at top
-
-  ctx.fillStyle = cc.col;
-  ctx.beginPath();
-  ctx.moveTo(bx + slant,        by);               // top-left
-  ctx.lineTo(bx + bw - slant,   by);               // top-right
-  ctx.lineTo(bx + bw,           by + bannerH);     // bottom-right
-  ctx.lineTo(bx,                by + bannerH);     // bottom-left
-  ctx.closePath();
-  ctx.fill();
-
-  // Category label inside banner
-  const lblSize = Math.round(bannerH * 0.52);
+  const lblSize = Math.round(bh * 0.58);
   ctx.fillStyle = '#ffffff';
   ctx.font = `800 ${lblSize}px Poppins,Arial Black,sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(cc.lbl, cx, by + bannerH * 0.52);
-
+  ctx.fillText(cc.lbl, cx, top + bh * 0.52);
   ctx.restore();
 }
 
@@ -734,48 +706,29 @@ function drawIOLBadge(ctx, logo, cc, cx, ly, lw, lh) {
 }
 
 function drawLeisureBadge(ctx, logo, x, y, bw, bh) {
-  // Leisure uses a circle badge style — IOL mark + teal circle + "Leisure" cursive
+  // Draw the extracted Leisure logo image directly if available
+  if (logo) {
+    const aspect = (logo.naturalWidth || logo.width) / (logo.naturalHeight || logo.height);
+    const drawW = bw;
+    const drawH = drawW / aspect;
+    ctx.drawImage(logo, x + (bw - drawW)/2, y + (bh - drawH)/2, drawW, drawH);
+    return;
+  }
+  // Fallback: teal circle with "Leisure" text — no bolt
   const cx = x + bw / 2;
   const cy = y + bh / 2;
-  const r = Math.min(bw, bh) / 2;
-
+  const r = Math.min(bw, bh) / 2 - 4;
   ctx.save();
-
-  // Teal circle outline
   ctx.strokeStyle = '#1A8FA0';
-  ctx.lineWidth = Math.round(r * 0.06);
+  ctx.lineWidth = Math.max(3, r * 0.06);
   ctx.beginPath();
-  ctx.arc(cx, cy, r - ctx.lineWidth, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
-
-  // Lightning bolt inside top of circle
-  const boltW = r * 0.18;
-  const boltTop = cy - r * 0.62;
-  const boltMid = cy - r * 0.32;
-  const boltBot = cy - r * 0.18;
-  const boltX = cx - boltW * 0.5;
-
-  ctx.fillStyle = '#1A8FA0';
-  ctx.beginPath();
-  ctx.moveTo(boltX,              boltTop);
-  ctx.lineTo(boltX + boltW,      boltTop);
-  ctx.lineTo(boltX + boltW * 0.35, boltMid);
-  ctx.lineTo(boltX + boltW,      boltMid);
-  ctx.lineTo(boltX,              boltBot);
-  ctx.lineTo(boltX + boltW * 0.65, boltMid);
-  ctx.lineTo(boltX,              boltMid);
-  ctx.closePath();
-  ctx.fill();
-
   // Horizontal rule
-  const ruleY = cy - r * 0.02;
-  ctx.strokeStyle = '#1A8FA0';
-  ctx.lineWidth = Math.round(r * 0.04);
   ctx.beginPath();
-  ctx.moveTo(cx - r * 0.7, ruleY);
-  ctx.lineTo(cx + r * 0.7, ruleY);
+  ctx.moveTo(cx - r * 0.65, cy - r * 0.08);
+  ctx.lineTo(cx + r * 0.65, cy - r * 0.08);
   ctx.stroke();
-
   // "Leisure" italic text
   const fontSize = Math.round(r * 0.44);
   ctx.fillStyle = '#1A8FA0';
@@ -783,10 +736,8 @@ function drawLeisureBadge(ctx, logo, x, y, bw, bh) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('Leisure', cx, cy + r * 0.38);
-
   ctx.restore();
 }
-
 
 function drawLeisureLogo(ctx, logo, x, y, w, h) {
   if(logo) {

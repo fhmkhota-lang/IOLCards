@@ -688,6 +688,8 @@ function renderCanvas() {
       const aspect = img.width / img.height;
       const lh = lw / aspect;
       ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.globalAlpha = (layer.opacity ?? 100) / 100;
       ctx.drawImage(img, lx, ly, lw, lh);
       ctx.restore();
