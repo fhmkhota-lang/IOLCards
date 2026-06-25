@@ -557,7 +557,9 @@ function drawTextBlock(ctx, headline, caption, headlineColor, W, H, logoZone, te
 function drawVerticalBadge(ctx, logoImg, cc, cx, cy, bw) {
   if (!logoImg) return;
   ctx.save();
-  const aspect = logoImg.naturalWidth / logoImg.naturalHeight;
+  const iw = logoImg.naturalWidth || logoImg.width;
+  const ih = logoImg.naturalHeight || logoImg.height;
+  const aspect = iw / ih;
   const drawW = bw;
   const drawH = drawW / aspect;
   ctx.drawImage(logoImg, cx - drawW / 2, cy - drawH, drawW, drawH);
