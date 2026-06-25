@@ -576,7 +576,14 @@ async function loadTemplatesFromSupabase() {
     if (res.ok) {
       const rows = await res.json();
       rows.forEach(row => {
-        templates[row.template_id] = typeof row.config === 'string' ? JSON.parse(row.config) : row.config;
+        const config = typeof row.config === 'string' ? JSON.parse(row.config) : row.config;
+        templates[row.template_id] = config;
+        // Pre-load all layer images into cache
+        (config?.layers || []).forEach(layer => {
+          if (layer.b64 && !imageCache[layer.id]) {
+            loadImageIntoCache(layer.id, layer.b64);
+          }
+        });
       });
     }
   } catch(e) {
@@ -808,6 +815,11 @@ function addImageLayer() {
   document.getElementById('new-layer-input').click();
 }
 
+function replaceLogoLayer() {
+  if (!currentTmpl) { showToast('Select a template first', true); return; }
+  document.getElementById('new-layer-input').click();
+}
+
 function handleNewLayerFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -834,11 +846,27 @@ function handleNewLayerFile(input) {
     if (!Array.isArray(templates[currentTmpl.id].layers)) {
       templates[currentTmpl.id].layers = [];
     }
-    templates[currentTmpl.id].layers.push(newLayer);
-    loadImageIntoCache(id, b64);
+    // Replace all existing layers with this single logo layer
+    if (typeof templates[currentTmpl.id] !== 'object' || !templates[currentTmpl.id]) {
+      templates[currentTmpl.id] = { layers: [], textPos: 'bot' };
+    }
+    templates[currentTmpl.id].layers = [newLayer];
+    loadImageIntoCache(id, b64, (img) => {
+      // Auto-size: set width to ~35% of canvas width, maintain aspect ratio
+      const isReel = currentTmpl.fmt === 'reel';
+      const canvasW = 1080;
+      const targetW = Math.round(canvasW * 0.35);
+      const aspect = img.naturalWidth / img.naturalHeight;
+      newLayer.w = targetW;
+      // Centre bottom position
+      newLayer.x = Math.round(canvasW / 2 - targetW / 2);
+      newLayer.y = isReel ? 1920 - Math.round(targetW / aspect) - 60 : 1080 - Math.round(targetW / aspect) - 60;
+      // Update sliders if this layer is selected
+      if (selectedLayer === 0) selectLayer(0);
+    });
     renderLayerList();
     renderCanvas();
-    selectLayer(templates[currentTmpl.id].layers.length - 1);
+    selectLayer(0);
     input.value = '';
   });
 }
@@ -865,10 +893,11 @@ function readFileAsB64(file, cb) {
   reader.readAsDataURL(file);
 }
 
-function loadImageIntoCache(id, b64) {
+function loadImageIntoCache(id, b64, onload) {
   const img = new Image();
   img.onload = () => {
     imageCache[id] = img;
+    if (onload) onload(img);
     renderLayerList();
     renderCanvas();
   };
