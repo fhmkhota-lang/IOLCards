@@ -576,7 +576,7 @@ async function loadTemplatesFromSupabase() {
     if (res.ok) {
       const rows = await res.json();
       rows.forEach(row => {
-        templates[row.template_id] = row.config;
+        templates[row.template_id] = typeof row.config === 'string' ? JSON.parse(row.config) : row.config;
       });
     }
   } catch(e) {
@@ -827,6 +827,13 @@ function handleNewLayerFile(input) {
       file: file.name,
       b64
     };
+    // Ensure template is a proper object with layers array
+    if (typeof templates[currentTmpl.id] !== 'object' || !templates[currentTmpl.id]) {
+      templates[currentTmpl.id] = { layers: [], textPos: 'bot' };
+    }
+    if (!Array.isArray(templates[currentTmpl.id].layers)) {
+      templates[currentTmpl.id].layers = [];
+    }
     templates[currentTmpl.id].layers.push(newLayer);
     loadImageIntoCache(id, b64);
     renderLayerList();
@@ -862,6 +869,7 @@ function loadImageIntoCache(id, b64) {
   const img = new Image();
   img.onload = () => {
     imageCache[id] = img;
+    renderLayerList();
     renderCanvas();
   };
   img.src = b64;
