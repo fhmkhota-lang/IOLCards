@@ -524,15 +524,15 @@ function drawStandardSq(ctx, p, cc) {
   // Left accent strip
   ctx.fillStyle=cc.col; ctx.fillRect(0,0,6,H);
 
-  // Kicker box top-left
-  drawKickerBox(ctx, p.kicker, p.kickerColor, 48, 52, W-96);
+  // Kicker box top-left (hidden when Breaking News banner is on)
+  if(!p.breaking) drawKickerBox(ctx, p.kicker, p.kickerColor, 48, 52, W-96);
 
   // Text block
   const logoZone=110;
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   const sqLayers = getTemplateLayers(p.cat, 'sq');
-  if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers);
+  if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers, {breaking:p.breaking, W, H});
 }
 
 /* ════════════════════════════════════════════
@@ -563,7 +563,7 @@ function drawStandardReel(ctx, p, cc) {
   ctx.restore();
 
   const reelLayers = getTemplateLayers(p.cat, 'reel');
-  if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers);
+  if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers, {breaking:p.breaking, W, H});
 }
 
 /* ════════════════════════════════════════════
@@ -587,7 +587,7 @@ function drawLeisureSq(ctx, p, cc) {
 
   // IOL Leisure logo top-left
   const sqLayers = getTemplateLayers(p.cat, 'sq');
-  if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers);
+  if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers, {breaking:p.breaking, W, H});
 
   // Headline (hot pink, bold, left-aligned, large)
   const padL=52, maxW=W-padL-48;
@@ -621,7 +621,7 @@ function drawLeisureReel(ctx, p, cc) {
 
   // IOL Leisure logo top-right (bigger on tall format)
   const reelLayers = getTemplateLayers(p.cat, 'reel');
-  if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers);
+  if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers, {breaking:p.breaking, W, H});
 
   // Headline
   const padL=56, maxW=W-padL-56;
@@ -697,7 +697,9 @@ async function preloadTemplateLayers(cat, fmt) {
   }
 }
 
-function drawTemplateLayersSync(ctx, layers) {
+function drawTemplateLayersSync(ctx, layers, opts) {
+  opts = opts || {};
+  const { breaking, W, H } = opts;
   for (const layer of layers) {
     if (!layer.visible) continue;
     const img = _layerImgCache[layer.id];
@@ -707,6 +709,12 @@ function drawTemplateLayersSync(ctx, layers) {
     const aspect = iw / ih;
     const drawW = layer.w;
     const drawH = drawW / aspect;
+    // Breaking mode: move logo to middle-bottom of the card
+    let lx = layer.x, ly = layer.y;
+    if (breaking && W && H) {
+      lx = (W - drawW) / 2;
+      ly = H - drawH - Math.round(H * 0.06);
+    }
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
@@ -721,9 +729,9 @@ function drawTemplateLayersSync(ctx, layers) {
       octx.imageSmoothingEnabled = true;
       octx.imageSmoothingQuality = 'high';
       octx.drawImage(img, 0, 0, offscreen.width, offscreen.height);
-      ctx.drawImage(offscreen, layer.x, layer.y, drawW, drawH);
+      ctx.drawImage(offscreen, lx, ly, drawW, drawH);
     } else {
-      ctx.drawImage(img, layer.x, layer.y, drawW, drawH);
+      ctx.drawImage(img, lx, ly, drawW, drawH);
     }
     ctx.restore();
   }
