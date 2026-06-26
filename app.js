@@ -35,7 +35,7 @@ const VERTICAL_LOGOS = {
   politics:      VLOGO_NEWS,
   sport:         VLOGO_SPORT,
   business:      VLOGO_NEWS,
-  technology:    VLOGO_TECHNOLOGY,
+  technology:    VLOGO_LEISURE,
   motoring:      VLOGO_MOTORING,
   travel:        VLOGO_TRAVEL,
   entertainment: VLOGO_LEISURE,
@@ -69,7 +69,7 @@ const CAT_CFG = {
   politics:      { col:'#E8192C', lbl:'POLITICS',  style:'standard' },
   sport:         { col:'#00A651', lbl:'SPORT',     style:'standard' },
   business:      { col:'#1565C0', lbl:'BUSINESS',  style:'standard' },
-  technology:    { col:'#1565C0', lbl:'TECH',      style:'standard' },
+  technology:    { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
   entertainment: { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
   lifestyle:     { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
   leisure:       { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
@@ -178,14 +178,14 @@ async function loadStories(refresh) {
 function renderFeed() {
   const grid=$id('stories-grid'); if(!grid)return;
   const filt=curFilter==='all'?allStories:allStories.filter(s=>{
-    if(curFilter==='leisure')return['entertainment','lifestyle','leisure','business','sport'].includes(s.cat);
+    if(curFilter==='leisure')return['entertainment','lifestyle','leisure','business','sport','technology'].includes(s.cat);
     return s.cat===curFilter;
   });
   const vis=filt.slice(0,visible);
   if(!vis.length){grid.innerHTML='<div class="grid-loading"><p>No stories in this category.</p></div>';if($id('load-more-row'))$id('load-more-row').style.display='none';return;}
   grid.innerHTML=vis.map(s=>`
     <div class="scard${doneIds.has(s.id)?' done':''}" data-id="${esc(s.id)}">
-      <div class="scard-cat">${esc(['entertainment','lifestyle'].includes(s.cat)?'Leisure':s.cat)}</div>
+      <div class="scard-cat">${esc(['entertainment','lifestyle','technology'].includes(s.cat)?'Leisure':s.cat)}</div>
       <div class="scard-hl">${esc(s.headline)}</div>
       ${s.excerpt?`<div class="scard-ex">${esc(s.excerpt)}</div>`:''}
       <div class="scard-meta">
@@ -420,8 +420,8 @@ async function loadTemplateConfigs() {
 
 function getTemplateLayers(catId, fmt) {
   const suffix = fmt === 'reel' ? 'reel' : 'sq';
-  // entertainment/lifestyle both fall back to the leisure template
-  const resolvedCat = (catId === 'entertainment' || catId === 'lifestyle') ? 'leisure' : catId;
+  // entertainment/lifestyle/technology all fall back to the leisure template
+  const resolvedCat = (catId === 'entertainment' || catId === 'lifestyle' || catId === 'technology') ? 'leisure' : catId;
   const key = resolvedCat + '-' + suffix;
   return _tmplConfigs[key]?.layers || null;
 }
@@ -484,33 +484,45 @@ async function renderBoth() {
 function drawBreakingBanner(ctx, W, isReel, leisure) {
   const barH = isReel ? 132 : 104;
   const accent = leisure ? '#F06BB5' : '#C61000';   // pink for leisure, IOL red otherwise
-  // Solid bar
-  ctx.save();
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, W, barH);
-  // Thin dark underline for separation
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.fillRect(0, barH, W, isReel ? 8 : 6);
-  // Pulsing dot
-  const dotR = isReel ? 18 : 14;
   const cy = barH/2;
+  const dotR = isReel ? 18 : 14;
   const dotX = isReel ? 70 : 56;
+  const fontSize = isReel ? 56 : 46;
+  const tracking = isReel ? 6 : 5;
+  const label = 'BREAKING NEWS';
+
+  ctx.save();
+  // Measure the letter-spaced label so the bar fits the text
+  ctx.font = `900 ${fontSize}px Poppins,Arial Black,sans-serif`;
+  let labelW = 0;
+  for (const ch of label) labelW += ctx.measureText(ch).width + tracking;
+  labelW -= tracking; // no trailing gap
+
+  const tx = dotX + dotR + (isReel ? 28 : 22);          // where text starts
+  const padR = isReel ? 44 : 34;                         // padding after text
+  const barW = Math.min(W, tx + labelW + padR);          // fitted bar width
+
+  // Fitted solid bar (stops after the text)
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, barW, barH);
+  // Thin dark underline under the bar only
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(0, barH, barW, isReel ? 8 : 6);
+
+  // Pulsing dot
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath(); ctx.arc(dotX, cy, dotR, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = accent;
   ctx.beginPath(); ctx.arc(dotX, cy, dotR*0.45, 0, Math.PI*2); ctx.fill();
+
   // Label
   ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.font = `900 ${isReel ? 56 : 46}px Poppins,Arial Black,sans-serif`;
   ctx.setLineDash([]);
-  const tx = dotX + dotR + (isReel ? 28 : 22);
-  // letter-spaced manual draw for a tighter newsroom look
-  const label = 'BREAKING NEWS';
   let cx = tx;
   for (const ch of label) {
     ctx.fillText(ch, cx, cy + 2);
-    cx += ctx.measureText(ch).width + (isReel ? 6 : 5);
+    cx += ctx.measureText(ch).width + tracking;
   }
   ctx.restore();
   return barH;
