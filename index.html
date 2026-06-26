@@ -157,6 +157,13 @@
           </div>
 
           <div class="ctrl-block">
+            <label class="breaking-toggle" for="ctrl-breaking">
+              <input type="checkbox" id="ctrl-breaking"/>
+              <span class="breaking-toggle-text">🔴 Breaking News banner</span>
+            </label>
+          </div>
+
+          <div class="ctrl-block">
             <div class="ctrl-label">Headline</div>
             <div class="color-input-row color-input-row--top">
               <textarea class="ctrl-ta" id="ctrl-headline" rows="3" placeholder="Story headline…"></textarea>
@@ -191,6 +198,8 @@
               <input class="ctrl-input" id="ctrl-imgurl" placeholder="https://iol-prod.appspot.com/image/…"/>
               <button class="reload-btn" id="ctrl-reload" title="Reload image">↺</button>
             </div>
+            <label class="upload-btn" for="ctrl-imgfile">⬆ Upload image from computer</label>
+            <input type="file" id="ctrl-imgfile" accept="image/*" style="display:none"/>
           </div>
 
           <div class="ctrl-block">

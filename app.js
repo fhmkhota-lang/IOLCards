@@ -141,7 +141,7 @@ let d = {
   type:'single', cat:'news', kicker:'BREAKING NEWS', headline:'',
   headlineColor:'#FFFFFF', kickerColor:'#FFFFFF',
   imgUrl:'', imgEl:null, imgX:0, imgY:0, imgScale:1,
-  textPos:'mid', reelTextPos:'mid', storyUrl:'', shortUrl:'',
+  textPos:'mid', reelTextPos:'mid', storyUrl:'', shortUrl:'', breaking:false,
   slides:[], slide:0,
   // Separate image positioning for square vs reel
   sqImgX:0, sqImgY:0, sqImgScale:1,
@@ -178,7 +178,7 @@ async function loadStories(refresh) {
 function renderFeed() {
   const grid=$id('stories-grid'); if(!grid)return;
   const filt=curFilter==='all'?allStories:allStories.filter(s=>{
-    if(curFilter==='leisure')return['entertainment','lifestyle','leisure'].includes(s.cat);
+    if(curFilter==='leisure')return['entertainment','lifestyle','leisure','business','sport'].includes(s.cat);
     return s.cat===curFilter;
   });
   const vis=filt.slice(0,visible);
@@ -208,13 +208,14 @@ async function openDesigner(story) {
   // Ensure template configs loaded
   if (Object.keys(_tmplConfigs).length === 0) await loadTemplateConfigs();
   d.cat=story.cat||'news'; d.kicker=story.kicker||catCfg(story.cat).lbl||'IOL';
-  d.headline=story.headline||''; d.imgUrl=story.image||'';
+  d.headline=story.headline||''; d.imgUrl=story.image||''; d.excerpt=story.excerpt||'';
   d.storyUrl=story.url||''; d.shortUrl='';
   d.sqImgX=0;d.sqImgY=0;d.sqImgScale=1;
   d.reelImgX=0;d.reelImgY=0;d.reelImgScale=1;
   d.textPos='mid'; d.reelTextPos='mid';
   d.type='single'; d.slides=[]; d.slide=0; d.imgEl=null; d.storyId=story.id;
-  d.headlineColor='#FFFFFF'; d.kickerColor='#FFFFFF';
+  d.headlineColor='#FFFFFF'; d.kickerColor='#FFFFFF'; d.breaking=false;
+  const bkt=$id('ctrl-breaking'); if(bkt) bkt.checked=false;
 
   sv('ctrl-cat',d.cat); sv('ctrl-kicker',d.kicker); sv('ctrl-headline',d.headline);
   sv('ctrl-imgurl',d.imgUrl);
@@ -270,9 +271,9 @@ function curSlide(){return d.type==='carousel'&&d.slides.length>0?d.slides[d.sli
 ['ctrl-kicker','ctrl-headline','ctrl-cat'].forEach(id=>{
   $id(id)?.addEventListener('input',function(){
     const sl=curSlide();
-    if(id==='ctrl-kicker'){d.kicker=this.value;sl.kicker=this.value;}
-    if(id==='ctrl-headline'){d.headline=this.value;sl.headline=this.value;}
-    if(id==='ctrl-cat'){d.cat=this.value;if(sl!==d)sl.cat=this.value;}
+    if(id==='ctrl-kicker'){sl.kicker=this.value;if(sl===d)d.kicker=this.value;}
+    if(id==='ctrl-headline'){sl.headline=this.value;if(sl===d)d.headline=this.value;}
+    if(id==='ctrl-cat'){sl.cat=this.value;if(sl===d)d.cat=this.value;}
     renderBoth();
   });
 });
@@ -280,15 +281,33 @@ function curSlide(){return d.type==='carousel'&&d.slides.length>0?d.slides[d.sli
 // Colour pickers — sync visible swatch colour
 $id('ctrl-hl-color')?.addEventListener('input',function(){
   const sw=$id('hl-swatch');if(sw)sw.style.background=this.value;
-  d.headlineColor=this.value;const sl=curSlide();sl.headlineColor=this.value;renderBoth();
+  const sl=curSlide();sl.headlineColor=this.value;if(sl===d)d.headlineColor=this.value;renderBoth();
 });
 $id('ctrl-kicker-color')?.addEventListener('input',function(){
   const sw=$id('kicker-swatch');if(sw)sw.style.background=this.value;
-  d.kickerColor=this.value;const sl=curSlide();sl.kickerColor=this.value;renderBoth();
+  const sl=curSlide();sl.kickerColor=this.value;if(sl===d)d.kickerColor=this.value;renderBoth();
 });
 
 $id('ctrl-imgurl')?.addEventListener('change',reloadImg);
 $id('ctrl-reload')?.addEventListener('click',reloadImg);
+
+$id('ctrl-imgfile')?.addEventListener('change',function(){
+  const f=this.files&&this.files[0]; if(!f)return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      d.imgEl=img; d.imgUrl=''; d.imgX=0; d.imgY=0; d.imgScale=1;
+      const sl=curSlide();
+      if(sl!==d){sl.imgEl=img;sl.imgUrl='';sl.sqImgX=0;sl.sqImgY=0;sl.sqImgScale=1;sl.reelImgX=0;sl.reelImgY=0;sl.reelImgScale=1;}
+      sv('ctrl-imgurl','');
+      renderBoth();
+    };
+    img.src=fr.result;
+  };
+  fr.readAsDataURL(f);
+  this.value='';   // allow re-uploading the same file
+});
 async function reloadImg(){
   const url=gv('ctrl-imgurl').trim();d.imgUrl=url;d.imgX=0;d.imgY=0;d.imgScale=1;d.imgEl=null;
   if(url){d.imgEl=await loadImgCORS(WORKER+'/image?url='+encodeURIComponent(url));if(!d.imgEl)d.imgEl=await loadImgDirect(url);}
@@ -307,6 +326,8 @@ $id('reel-pos-grid')?.addEventListener('click',e=>{
   b.classList.add('active'); d.reelTextPos=b.dataset.pos; renderBoth();
 });
 
+$id('ctrl-breaking')?.addEventListener('change',function(){d.breaking=this.checked;renderBoth();});
+
 $id('type-toggle')?.addEventListener('click',e=>{
   const b=e.target.closest('.tt-btn');if(!b)return;
   document.querySelectorAll('.tt-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
@@ -320,7 +341,7 @@ function addSlide(){d.slides.push({kicker:d.kicker,headline:d.headline,cat:d.cat
 function syncSlideUI(){const sl=d.slides[d.slide];if(!sl)return;sv('ctrl-kicker',sl.kicker);sv('ctrl-headline',sl.headline);sv('ctrl-cat',sl.cat||d.cat);sv('ctrl-imgurl',sl.imgUrl||'');sv('ctrl-hl-color',sl.headlineColor||'#FFFFFF');sv('ctrl-kicker-color',sl.kickerColor||'#FFFFFF');}
 function updateCarouselUI(){const bar=$id('carousel-bar'),ind=$id('c-indicator'),isC=d.type==='carousel';if(bar)bar.style.display=isC?'flex':'none';if(ind)ind.textContent=isC?`Slide ${d.slide+1} / ${d.slides.length}`:'';;}
 
-$id('c-add')?.addEventListener('click',()=>{addSlide();updateCarouselUI();renderBoth();});
+$id('c-add')?.addEventListener('click',()=>{addSlide();syncSlideUI();updateCarouselUI();renderBoth();});
 $id('c-del')?.addEventListener('click',()=>{if(d.slides.length<=1)return;d.slides.splice(d.slide,1);d.slide=Math.min(d.slide,d.slides.length-1);syncSlideUI();updateCarouselUI();renderBoth();});
 $id('c-prev')?.addEventListener('click',()=>{if(d.slide>0){d.slide--;syncSlideUI();updateCarouselUI();renderBoth();}});
 $id('c-next')?.addEventListener('click',()=>{if(d.slide<d.slides.length-1){d.slide++;syncSlideUI();updateCarouselUI();renderBoth();}});
@@ -358,14 +379,22 @@ function dlCanvas(canvasId,fn){const c=$id(canvasId);if(!c)return;try{const a=do
 
 /* Share text */
 $id('copy-share-btn')?.addEventListener('click',function(){const t=gv('ctrl-share');if(!t)return;navigator.clipboard.writeText(t).then(()=>{const o=this.textContent;this.textContent='Copied!';setTimeout(()=>this.textContent=o,1600);});});
+function firstSentence(txt){
+  if(!txt) return '';
+  const t=txt.trim().replace(/\s+/g,' ');
+  const m=t.match(/^.*?[.!?](?=\s|$)/);
+  return (m?m[0]:t).trim();
+}
 function buildShareText(){
-  const cc=catCfg(d.cat);
   const tagMap={news:'#SouthAfrica #NewsZA #IOL',politics:'#SAPoltics #SouthAfrica #IOL',sport:'#SportZA #SouthAfrica #IOL',business:'#BusinessZA #SouthAfrica #IOL',technology:'#TechZA #SouthAfrica #IOL',entertainment:'#Leisure #Entertainment #IOL',lifestyle:'#Leisure #Lifestyle #IOL',motoring:'#Motoring #SouthAfrica #IOL',travel:'#Travel #SouthAfrica #IOL'};
   const tags=tagMap[d.cat]||'#SouthAfrica #IOL';
   const url=d.shortUrl||d.storyUrl;
   const urlLine=url?'\n\n\uD83D\uDD17 '+url:'';
-  const follow=cc.style==='leisure'?'Follow @IOLLeisure for entertainment and lifestyle news':'Follow @IOL for the latest South African news';
-  sv('ctrl-share',d.headline+urlLine+'\n\n'+tags+'\n\n\uD83D\uDCF0 '+follow);
+  const intro=firstSentence(d.excerpt);
+  const body=intro && intro.toLowerCase()!==(d.headline||'').toLowerCase()
+    ? d.headline+'\n\n'+intro
+    : d.headline;
+  sv('ctrl-share',body+urlLine+'\n\n'+tags);
 }
 
 /* ════════════════════════════════════════════
@@ -403,21 +432,24 @@ async function renderBoth() {
   await preloadTemplateLayers(catKey, 'sq');
   await preloadTemplateLayers(catKey, 'reel');
   const sl = curSlide();
+  const isSlide = sl !== d;
+  const pick = (slv, dv, def) => isSlide ? (slv != null ? slv : def) : (slv != null ? slv : (dv != null ? dv : def));
   const p = {
-    kicker:        sl.kicker        || d.kicker        || '',
-    headline:      sl.headline      || d.headline       || '',
-    headlineColor: sl.headlineColor || d.headlineColor  || '#FFFFFF',
-    kickerColor:   sl.kickerColor   || d.kickerColor    || '#FFFFFF',
-    cat:           sl.cat           || d.cat            || 'news',
-    imgEl:         sl.imgEl         || d.imgEl,
-    sqImgX:     sl.sqImgX   != null ? sl.sqImgX   : d.sqImgX,
-    sqImgY:     sl.sqImgY   != null ? sl.sqImgY   : d.sqImgY,
-    sqImgScale: sl.sqImgScale       || d.sqImgScale     || 1,
-    reelImgX:   sl.reelImgX != null ? sl.reelImgX : d.reelImgX,
-    reelImgY:   sl.reelImgY != null ? sl.reelImgY : d.reelImgY,
-    reelImgScale:sl.reelImgScale    || d.reelImgScale   || 1,
+    kicker:        isSlide ? (sl.kicker ?? '')        : (sl.kicker        || d.kicker        || ''),
+    headline:      isSlide ? (sl.headline ?? '')      : (sl.headline      || d.headline      || ''),
+    headlineColor: pick(sl.headlineColor, d.headlineColor, '#FFFFFF'),
+    kickerColor:   pick(sl.kickerColor,   d.kickerColor,   '#FFFFFF'),
+    cat:           isSlide ? (sl.cat || 'news')       : (sl.cat || d.cat || 'news'),
+    imgEl:         isSlide ? sl.imgEl                  : (sl.imgEl || d.imgEl),
+    sqImgX:     sl.sqImgX   != null ? sl.sqImgX   : (isSlide ? 0 : d.sqImgX),
+    sqImgY:     sl.sqImgY   != null ? sl.sqImgY   : (isSlide ? 0 : d.sqImgY),
+    sqImgScale: sl.sqImgScale       || (isSlide ? 1 : (d.sqImgScale || 1)),
+    reelImgX:   sl.reelImgX != null ? sl.reelImgX : (isSlide ? 0 : d.reelImgX),
+    reelImgY:   sl.reelImgY != null ? sl.reelImgY : (isSlide ? 0 : d.reelImgY),
+    reelImgScale:sl.reelImgScale    || (isSlide ? 1 : (d.reelImgScale || 1)),
     textPos:    d.textPos    || 'mid',
     reelTextPos: d.reelTextPos || 'mid',
+    breaking:   !!d.breaking,
     logoIOL, logoLeisure, logoVertical,
   };
   const cc = catCfg(p.cat);
@@ -446,9 +478,48 @@ async function renderBoth() {
 /* ════════════════════════════════════════════
    DRAW: STANDARD SQUARE
    ════════════════════════════════════════════ */
+/* ════════════════════════════════════════════
+   DRAW: BREAKING NEWS BANNER (shared, top of card)
+   ════════════════════════════════════════════ */
+function drawBreakingBanner(ctx, W, isReel, leisure) {
+  const barH = isReel ? 132 : 104;
+  const accent = leisure ? '#F06BB5' : '#C61000';   // pink for leisure, IOL red otherwise
+  // Solid bar
+  ctx.save();
+  ctx.fillStyle = accent;
+  ctx.fillRect(0, 0, W, barH);
+  // Thin dark underline for separation
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(0, barH, W, isReel ? 8 : 6);
+  // Pulsing dot
+  const dotR = isReel ? 18 : 14;
+  const cy = barH/2;
+  const dotX = isReel ? 70 : 56;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath(); ctx.arc(dotX, cy, dotR, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = accent;
+  ctx.beginPath(); ctx.arc(dotX, cy, dotR*0.45, 0, Math.PI*2); ctx.fill();
+  // Label
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.font = `900 ${isReel ? 56 : 46}px Poppins,Arial Black,sans-serif`;
+  ctx.setLineDash([]);
+  const tx = dotX + dotR + (isReel ? 28 : 22);
+  // letter-spaced manual draw for a tighter newsroom look
+  const label = 'BREAKING NEWS';
+  let cx = tx;
+  for (const ch of label) {
+    ctx.fillText(ch, cx, cy + 2);
+    cx += ctx.measureText(ch).width + (isReel ? 6 : 5);
+  }
+  ctx.restore();
+  return barH;
+}
+
 function drawStandardSq(ctx, p, cc) {
   const W=SQ, H=SQ;
   drawPhotoAndOverlay(ctx, p, W, H, p.sqImgX, p.sqImgY, p.sqImgScale);
+  if(p.breaking) drawBreakingBanner(ctx, W, false, false);
 
   // Left accent strip
   ctx.fillStyle=cc.col; ctx.fillRect(0,0,6,H);
@@ -470,6 +541,7 @@ function drawStandardSq(ctx, p, cc) {
 function drawStandardReel(ctx, p, cc) {
   const W=RW, H=RH;
   drawPhotoAndOverlay(ctx, p, W, H, p.reelImgX, p.reelImgY, p.reelImgScale);
+  if(p.breaking) drawBreakingBanner(ctx, W, true, false);
 
   // Left accent strip
   ctx.fillStyle=cc.col; ctx.fillRect(0,0,6,H);
@@ -511,6 +583,8 @@ function drawLeisureSq(ctx, p, cc) {
   g.addColorStop(0.52,'rgba(20,8,18,0.78)'); g.addColorStop(1,'rgba(20,8,18,0.97)');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
+  if(p.breaking) drawBreakingBanner(ctx, W, false, true);
+
   // IOL Leisure logo top-left
   const sqLayers = getTemplateLayers(p.cat, 'sq');
   if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers);
@@ -542,6 +616,8 @@ function drawLeisureReel(ctx, p, cc) {
   g.addColorStop(0,'rgba(20,8,18,0)'); g.addColorStop(0.25,'rgba(20,8,18,0.20)');
   g.addColorStop(0.5,'rgba(20,8,18,0.72)'); g.addColorStop(1,'rgba(20,8,18,0.97)');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+
+  if(p.breaking) drawBreakingBanner(ctx, W, true, true);
 
   // IOL Leisure logo top-right (bigger on tall format)
   const reelLayers = getTemplateLayers(p.cat, 'reel');

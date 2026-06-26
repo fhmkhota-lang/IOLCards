@@ -131,6 +131,11 @@ body{background:var(--black);color:var(--white);font-family:var(--font);font-siz
 .img-url-row{display:flex;gap:6px;}
 .reload-btn{width:34px;height:34px;background:var(--s2);border:1px solid var(--border);border-radius:2px;color:var(--muted);font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s;}
 .reload-btn:hover{color:var(--white);border-color:var(--border2);}
+.upload-btn{display:block;margin-top:8px;background:var(--s2);border:1px solid var(--border);border-radius:2px;color:var(--muted);font-size:12px;font-family:var(--font);padding:8px 10px;cursor:pointer;text-align:center;transition:all .12s;}
+.upload-btn:hover{color:var(--white);border-color:var(--border2);background:rgba(255,255,255,0.03);}
+.breaking-toggle{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;}
+.breaking-toggle input{width:16px;height:16px;accent-color:#C61000;cursor:pointer;}
+.breaking-toggle-text{font-size:12.5px;color:var(--white);font-weight:600;letter-spacing:.02em;}
 
 /* Colour pickers */
 .color-input-row{display:flex;gap:8px;align-items:center;}
