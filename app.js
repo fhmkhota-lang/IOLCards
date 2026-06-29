@@ -30,6 +30,7 @@ function getLogoLeisure() {
   });
 }
 
+const LEISURE_CATS = ['entertainment','lifestyle','leisure','business','sport','technology','travel'];
 const VERTICAL_LOGOS = {
   news:          VLOGO_NEWS,
   politics:      VLOGO_NEWS,
@@ -44,7 +45,9 @@ const VERTICAL_LOGOS = {
   default:       VLOGO_NEWS,
 };
 function getVerticalLogo(cat) {
-  const key = (cat||'news').toLowerCase();
+  let key = (cat||'news').toLowerCase();
+  // Everything in the leisure group carries the leisure logo
+  if (LEISURE_CATS.includes(key)) key = 'leisure';
   const b64 = VERTICAL_LOGOS[key] || VERTICAL_LOGOS.news;
   return new Promise(res => {
     if (_logoCache[key]) { res(_logoCache[key]); return; }
@@ -77,7 +80,7 @@ const CAT_CFG = {
   travel:        { col:'#F5A623', lbl:'TRAVEL',    style:'standard' },
   default:       { col:'#E8192C', lbl:'NEWS',      style:'standard' },
 };
-function catCfg(c) { return CAT_CFG[(c||'').toLowerCase()] || CAT_CFG.default; }
+function catCfg(c) { let k=(c||'').toLowerCase(); if(LEISURE_CATS.includes(k)) k='leisure'; return CAT_CFG[k] || CAT_CFG.default; }
 
 /* ── Preloaded stories ── */
 const PRELOADED = [
@@ -94,7 +97,7 @@ const PRELOADED = [
 ];
 
 /* ── State ── */
-let allStories = [], curFilter = 'all', visible = PAGE_SZ;
+let allStories = [], curFilter = 'all', curSub = 'all', visible = PAGE_SZ;
 let doneIds = new Set();
 
 /* ── SUPABASE CONFIG ──
@@ -178,7 +181,11 @@ async function loadStories(refresh) {
 function renderFeed() {
   const grid=$id('stories-grid'); if(!grid)return;
   const filt=curFilter==='all'?allStories:allStories.filter(s=>{
-    if(curFilter==='leisure')return['entertainment','lifestyle','leisure','business','sport','technology'].includes(s.cat);
+    if(curFilter==='leisure'){
+      if(!LEISURE_CATS.includes(s.cat)) return false;
+      if(curSub!=='all') return s.cat===curSub;
+      return true;
+    }
     return s.cat===curFilter;
   });
   const vis=filt.slice(0,visible);
@@ -197,7 +204,8 @@ function renderFeed() {
   const lmr=$id('load-more-row');if(lmr)lmr.style.display=filt.length>visible?'block':'none';
 }
 
-$id('cat-pills')?.addEventListener('click',e=>{const p=e.target.closest('.cpill');if(!p)return;document.querySelectorAll('.cpill').forEach(x=>x.classList.remove('active'));p.classList.add('active');curFilter=p.dataset.cat;visible=PAGE_SZ;renderFeed();});
+$id('cat-pills')?.addEventListener('click',e=>{const p=e.target.closest('.cpill');if(!p)return;document.querySelectorAll('.cpill').forEach(x=>x.classList.remove('active'));p.classList.add('active');curFilter=p.dataset.cat;curSub='all';const sub=$id('subcat-pills');if(sub){sub.hidden=curFilter!=='leisure';sub.querySelectorAll('.spill').forEach(x=>x.classList.toggle('active',x.dataset.sub==='all'));}visible=PAGE_SZ;renderFeed();});
+$id('subcat-pills')?.addEventListener('click',e=>{const p=e.target.closest('.spill');if(!p)return;document.querySelectorAll('.spill').forEach(x=>x.classList.remove('active'));p.classList.add('active');curSub=p.dataset.sub;visible=PAGE_SZ;renderFeed();});
 $id('load-more-btn')?.addEventListener('click',()=>{visible+=PAGE_SZ;renderFeed();});
 $id('refresh-btn')?.addEventListener('click',()=>loadStories(true));
 
@@ -383,7 +391,16 @@ function firstSentence(txt){
   if(!txt) return '';
   const t=txt.trim().replace(/\s+/g,' ');
   const m=t.match(/^.*?[.!?](?=\s|$)/);
-  return (m?m[0]:t).trim();
+  let s=(m?m[0]:t).trim();
+  // Keep captions tight: cap the intro length, trimming on a word boundary
+  const MAX=140;
+  if(s.length>MAX){
+    let cut=s.slice(0,MAX);
+    const sp=cut.lastIndexOf(' ');
+    if(sp>60) cut=cut.slice(0,sp);
+    s=cut.replace(/[\s.,;:!?-]+$/,'')+'…';
+  }
+  return s;
 }
 function buildShareText(){
   const tagMap={news:'#SouthAfrica #NewsZA #IOL',politics:'#SAPoltics #SouthAfrica #IOL',sport:'#SportZA #SouthAfrica #IOL',business:'#BusinessZA #SouthAfrica #IOL',technology:'#TechZA #SouthAfrica #IOL',entertainment:'#Leisure #Entertainment #IOL',lifestyle:'#Leisure #Lifestyle #IOL',motoring:'#Motoring #SouthAfrica #IOL',travel:'#Travel #SouthAfrica #IOL'};
@@ -421,7 +438,7 @@ async function loadTemplateConfigs() {
 function getTemplateLayers(catId, fmt) {
   const suffix = fmt === 'reel' ? 'reel' : 'sq';
   // entertainment/lifestyle/technology all fall back to the leisure template
-  const resolvedCat = (catId === 'entertainment' || catId === 'lifestyle' || catId === 'technology') ? 'leisure' : catId;
+  const resolvedCat = LEISURE_CATS.includes(catId) ? 'leisure' : catId;
   const key = resolvedCat + '-' + suffix;
   return _tmplConfigs[key]?.layers || null;
 }

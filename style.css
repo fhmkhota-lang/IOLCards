@@ -40,6 +40,11 @@ body{background:var(--black);color:var(--white);font-family:var(--font);font-siz
 .cpill{background:transparent;border:1px solid transparent;border-radius:2px;color:var(--muted);font-family:var(--font);font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;padding:4px 10px;cursor:pointer;transition:all .12s;white-space:nowrap;}
 .cpill:hover{color:var(--white);border-color:var(--border2);}
 .cpill.active{background:var(--red);color:#fff;border-color:var(--red);}
+.subcat-pills{display:flex;gap:3px;flex-wrap:wrap;margin-top:6px;padding-top:6px;border-top:1px solid var(--border2);}
+.subcat-pills[hidden]{display:none;}
+.spill{background:transparent;border:1px solid transparent;border-radius:2px;color:var(--muted);font-family:var(--font);font-size:9.5px;font-weight:600;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.spill:hover{color:var(--white);border-color:var(--border2);}
+.spill.active{background:#1A8FA0;color:#fff;border-color:#1A8FA0;}
 
 /* FEED */
 .feed{max-width:1440px;margin:0 auto;padding:1.25rem 1.5rem 3rem;}
