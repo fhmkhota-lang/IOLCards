@@ -30,7 +30,13 @@ function getLogoLeisure() {
   });
 }
 
-const LEISURE_CATS = ['entertainment','lifestyle','leisure','business','sport','technology','travel'];
+// Stories shown under the Leisure tab
+const LEISURE_CATS = ['entertainment','lifestyle','leisure','business','sport','technology','travel','motoring'];
+// Of those, which ones get fully rebranded with the leisure logo/design.
+// Motoring is listed under Leisure but keeps its own logo/design, so it's excluded.
+const LEISURE_BRAND = ['entertainment','lifestyle','leisure','business','sport','technology','travel'];
+// Stories shown under the News tab (politics is rebranded as News)
+const NEWS_CATS = ['news','politics'];
 const VERTICAL_LOGOS = {
   news:          VLOGO_NEWS,
   politics:      VLOGO_NEWS,
@@ -46,8 +52,10 @@ const VERTICAL_LOGOS = {
 };
 function getVerticalLogo(cat) {
   let key = (cat||'news').toLowerCase();
-  // Everything in the leisure group carries the leisure logo
-  if (LEISURE_CATS.includes(key)) key = 'leisure';
+  // Leisure-branded cats carry the leisure logo (motoring keeps its own)
+  if (LEISURE_BRAND.includes(key)) key = 'leisure';
+  // Politics is rebranded as News
+  else if (key === 'politics') key = 'news';
   const b64 = VERTICAL_LOGOS[key] || VERTICAL_LOGOS.news;
   return new Promise(res => {
     if (_logoCache[key]) { res(_logoCache[key]); return; }
@@ -80,7 +88,7 @@ const CAT_CFG = {
   travel:        { col:'#F5A623', lbl:'TRAVEL',    style:'standard' },
   default:       { col:'#E8192C', lbl:'NEWS',      style:'standard' },
 };
-function catCfg(c) { let k=(c||'').toLowerCase(); if(LEISURE_CATS.includes(k)) k='leisure'; return CAT_CFG[k] || CAT_CFG.default; }
+function catCfg(c) { let k=(c||'').toLowerCase(); if(LEISURE_BRAND.includes(k)) k='leisure'; else if(k==='politics') k='news'; return CAT_CFG[k] || CAT_CFG.default; }
 
 /* ── Preloaded stories ── */
 const PRELOADED = [
@@ -186,13 +194,14 @@ function renderFeed() {
       if(curSub!=='all') return s.cat===curSub;
       return true;
     }
+    if(curFilter==='news') return NEWS_CATS.includes(s.cat);
     return s.cat===curFilter;
   });
   const vis=filt.slice(0,visible);
   if(!vis.length){grid.innerHTML='<div class="grid-loading"><p>No stories in this category.</p></div>';if($id('load-more-row'))$id('load-more-row').style.display='none';return;}
   grid.innerHTML=vis.map(s=>`
     <div class="scard${doneIds.has(s.id)?' done':''}" data-id="${esc(s.id)}">
-      <div class="scard-cat">${esc(['entertainment','lifestyle','technology'].includes(s.cat)?'Leisure':s.cat)}</div>
+      <div class="scard-cat">${esc(LEISURE_BRAND.includes(s.cat)?'Leisure':(s.cat==='politics'?'News':s.cat))}</div>
       <div class="scard-hl">${esc(s.headline)}</div>
       ${s.excerpt?`<div class="scard-ex">${esc(s.excerpt)}</div>`:''}
       <div class="scard-meta">
@@ -437,8 +446,9 @@ async function loadTemplateConfigs() {
 
 function getTemplateLayers(catId, fmt) {
   const suffix = fmt === 'reel' ? 'reel' : 'sq';
-  // entertainment/lifestyle/technology all fall back to the leisure template
-  const resolvedCat = LEISURE_CATS.includes(catId) ? 'leisure' : catId;
+  // Leisure-branded cats use the leisure template (motoring keeps its own);
+  // politics uses the news template.
+  const resolvedCat = LEISURE_BRAND.includes(catId) ? 'leisure' : (catId === 'politics' ? 'news' : catId);
   const key = resolvedCat + '-' + suffix;
   return _tmplConfigs[key]?.layers || null;
 }
