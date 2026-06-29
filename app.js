@@ -31,10 +31,10 @@ function getLogoLeisure() {
 }
 
 // Stories shown under the Leisure tab
-const LEISURE_CATS = ['entertainment','lifestyle','leisure','business','sport','technology','travel','motoring'];
+const LEISURE_CATS = ['entertainment','lifestyle','leisure','business','technology','travel','motoring'];
 // Of those, which ones get fully rebranded with the leisure logo/design.
 // Motoring is listed under Leisure but keeps its own logo/design, so it's excluded.
-const LEISURE_BRAND = ['entertainment','lifestyle','leisure','business','sport','technology','travel'];
+const LEISURE_BRAND = ['entertainment','lifestyle','leisure','business','technology','travel'];
 // Stories shown under the News tab (politics is rebranded as News)
 const NEWS_CATS = ['news','politics'];
 const VERTICAL_LOGOS = {
