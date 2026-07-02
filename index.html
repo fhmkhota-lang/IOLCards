@@ -92,6 +92,7 @@
           <div class="type-toggle" id="type-toggle">
             <button class="tt-btn active" data-type="single">Single</button>
             <button class="tt-btn" data-type="carousel">Carousel</button>
+            <button class="tt-btn" data-type="infographic">Infographic</button>
           </div>
 
           <!-- DUAL CANVAS ROW -->
@@ -132,6 +133,16 @@
           </div>
           <!-- Stacked, clickable carousel pages -->
           <div class="carousel-pages" id="carousel-pages" style="display:none"></div>
+
+          <!-- Infographic editor -->
+          <div class="info-editor" id="info-editor" style="display:none">
+            <div class="ctrl-label">Infographic key points</div>
+            <button class="ai-gen-btn" id="info-gen">✨ Generate with AI</button>
+            <div class="info-hint" id="info-hint">One point per line · 3–4 works best</div>
+            <textarea class="ctrl-input info-points" id="info-points" rows="6" placeholder="Type key points here, one per line — or tap Generate with AI"></textarea>
+            <div class="ctrl-label" style="margin-top:10px">Source line</div>
+            <input class="ctrl-input" id="info-source" placeholder="e.g. IOL · Reporter name"/>
+          </div>
         </div>
 
         <!-- ── RIGHT: Controls ── -->

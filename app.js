@@ -232,6 +232,10 @@ async function openDesigner(story) {
   d.textPos='mid'; d.reelTextPos='mid';
   d.type='single'; d.slides=[]; d.slide=0; d.imgEl=null; d.storyId=story.id;
   d.headlineColor='#FFFFFF'; d.kickerColor='#FFFFFF'; d.breaking=false;
+  d.points=[]; d.source=story.source||'IOL';
+  const ie=$id('info-editor'); if(ie) ie.style.display='none';
+  const ipt=$id('info-points'); if(ipt) ipt.value='';
+  const isrc=$id('info-source'); if(isrc) isrc.value=d.source;
   const bkt=$id('ctrl-breaking'); if(bkt) bkt.checked=false;
 
   sv('ctrl-cat',d.cat); sv('ctrl-kicker',d.kicker); sv('ctrl-headline',d.headline);
@@ -353,11 +357,51 @@ $id('type-toggle')?.addEventListener('click',e=>{
   document.querySelectorAll('.tt-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');
   d.type=b.dataset.type;
   if(d.type==='carousel'&&d.slides.length===0)addSlide();
+  const ie=$id('info-editor'); if(ie) ie.style.display=d.type==='infographic'?'block':'none';
+  if(d.type==='infographic'){ seedInfographic(); }
   $id('btn-dl-all').style.display=d.type==='carousel'?'inline-block':'none';
   updateCarouselUI();renderBoth();
 });
 
 function addSlide(){d.slides.push({kicker:d.kicker,headline:d.headline,cat:d.cat,headlineColor:d.headlineColor,kickerColor:d.kickerColor,imgUrl:d.imgUrl,imgEl:d.imgEl,sqImgX:0,sqImgY:0,sqImgScale:1,reelImgX:0,reelImgY:0,reelImgScale:1});d.slide=d.slides.length-1;}
+
+function seedInfographic(){
+  if(!d.source) d.source = d.excerptSource || 'IOL';
+  const ta=$id('info-points'), src=$id('info-source');
+  if(ta) ta.value=(d.points||[]).join('\n');
+  if(src) src.value=d.source||'IOL';
+}
+$id('info-points')?.addEventListener('input',function(){
+  d.points=this.value.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,4);
+  renderBoth();
+});
+$id('info-source')?.addEventListener('input',function(){ d.source=this.value; renderBoth(); });
+$id('info-gen')?.addEventListener('click',genInfographicPoints);
+
+async function genInfographicPoints(){
+  const btn=$id('info-gen'), hint=$id('info-hint'), ta=$id('info-points');
+  if(!btn) return;
+  const orig=btn.textContent; btn.disabled=true; btn.textContent='✨ Generating…';
+  if(hint) hint.textContent='Asking AI to summarise the story…';
+  try{
+    const prompt='You are a South African news editor. From the article headline and summary below, write the 4 most important factual key points for a social-media infographic. Each point: one short punchy sentence, max 14 words, no numbering, plain text. Return ONLY a JSON array of 4 strings, nothing else.\n\nHEADLINE: '+(d.headline||'')+'\n\nSUMMARY: '+(d.excerpt||'');
+    const res=await fetch(WORKER+'/claude',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:400,messages:[{role:'user',content:prompt}]})});
+    const data=await res.json();
+    let txt=''; if(data && data.content) txt=data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+    txt=txt.replace(/```json|```/g,'').trim();
+    const arr=JSON.parse(txt);
+    if(Array.isArray(arr) && arr.length){
+      d.points=arr.map(s=>String(s).trim()).filter(Boolean).slice(0,4);
+      if(ta) ta.value=d.points.join('\n');
+      if(hint) hint.textContent='AI draft ready — edit freely above.';
+      renderBoth();
+    } else throw new Error('bad shape');
+  }catch(e){
+    if(hint) hint.textContent='AI generation failed — type points manually, or try again.';
+  }finally{
+    btn.disabled=false; btn.textContent=orig;
+  }
+}
 function syncSlideUI(){const sl=d.slides[d.slide];if(!sl)return;sv('ctrl-kicker',sl.kicker);sv('ctrl-headline',sl.headline);sv('ctrl-cat',sl.cat||d.cat);sv('ctrl-imgurl',sl.imgUrl||'');sv('ctrl-hl-color',sl.headlineColor||'#FFFFFF');sv('ctrl-kicker-color',sl.kickerColor||'#FFFFFF');}
 function updateCarouselUI(){const bar=$id('carousel-bar'),ind=$id('c-indicator'),isC=d.type==='carousel';if(bar)bar.style.display=isC?'flex':'none';if(ind)ind.textContent=isC?`${d.slides.length} page${d.slides.length===1?'':'s'} — editing page ${d.slide+1}`:'';renderCarouselPages();}
 function renderCarouselPages(){
@@ -500,6 +544,8 @@ async function renderBoth() {
     textPos:    d.textPos    || 'mid',
     reelTextPos: d.reelTextPos || 'mid',
     breaking:   !!d.breaking,
+    points:     d.points || [],
+    source:     d.source || 'IOL',
     logoIOL, logoLeisure, logoVertical,
   };
   const cc = catCfg(p.cat);
@@ -510,7 +556,8 @@ async function renderBoth() {
     csq.width=SQ; csq.height=SQ;
     const ctx=csq.getContext('2d');
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-    if(cc.style==='leisure') drawLeisureSq(ctx,p,cc);
+    if(d.type==='infographic') drawInfographicSq(ctx,p,cc);
+    else if(cc.style==='leisure') drawLeisureSq(ctx,p,cc);
     else drawStandardSq(ctx,p,cc);
   }
 
@@ -520,7 +567,8 @@ async function renderBoth() {
     creel.width=RW; creel.height=RH;
     const ctx=creel.getContext('2d');
     ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-    if(cc.style==='leisure') drawLeisureReel(ctx,p,cc);
+    if(d.type==='infographic') drawInfographicReel(ctx,p,cc);
+    else if(cc.style==='leisure') drawLeisureReel(ctx,p,cc);
     else drawStandardReel(ctx,p,cc);
   }
 }
@@ -627,6 +675,93 @@ function drawStandardReel(ctx, p, cc) {
   const reelLayers = getTemplateLayers(p.cat, 'reel');
   if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers, {breaking:p.breaking, W, H});
 }
+
+/* ════════════════════════════════════════════
+   DRAW: INFOGRAPHIC (headline + key points + source)
+   ════════════════════════════════════════════ */
+function drawInfographicSq(ctx, p, cc){ drawInfographic(ctx, p, cc, SQ, SQ, false); }
+function drawInfographicReel(ctx, p, cc){ drawInfographic(ctx, p, cc, RW, RH, true); }
+
+function drawInfographic(ctx, p, cc, W, H, isReel){
+  const accent = cc.col || '#E8192C';
+  // Dark editorial background
+  ctx.fillStyle = '#0E1114'; ctx.fillRect(0,0,W,H);
+
+  // Top photo strip (about 34% of height)
+  const photoH = Math.round(H*0.34);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,0,W,photoH); ctx.clip();
+  drawPhoto(ctx, p, W, photoH, isReel?p.reelImgX:p.sqImgX, isReel?p.reelImgY:p.sqImgY, (isReel?p.reelImgScale:p.sqImgScale)||1);
+  // darken for legibility
+  const g = ctx.createLinearGradient(0,0,0,photoH);
+  g.addColorStop(0,'rgba(14,17,20,0.15)'); g.addColorStop(1,'rgba(14,17,20,0.85)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,photoH);
+  ctx.restore();
+
+  // Accent kicker tag
+  const padX = isReel ? 64 : 56;
+  let y = photoH + (isReel ? 70 : 54);
+  const kick = (p.kicker || cc.lbl || 'IOL').toUpperCase();
+  ctx.font = `800 ${isReel?30:26}px Poppins,Arial,sans-serif`;
+  const kw = ctx.measureText(kick).width + (isReel?40:32);
+  ctx.fillStyle = accent;
+  ctx.fillRect(padX, y-(isReel?38:32), kw, isReel?48:40);
+  ctx.fillStyle = '#fff'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(kick, padX+(isReel?20:16), y-(isReel?14:12));
+
+  // Headline
+  y += isReel ? 40 : 30;
+  ctx.fillStyle = p.headlineColor || '#FFFFFF';
+  const hlSize = isReel ? 64 : 52;
+  ctx.font = `800 ${hlSize}px Poppins,Arial Black,sans-serif`;
+  ctx.textBaseline = 'alphabetic';
+  const hlLines = wrapText(ctx, p.headline||'', W - padX*2);
+  const hlLH = hlSize * 1.12;
+  hlLines.slice(0,3).forEach((ln,i)=>ctx.fillText(ln, padX, y + (i+1)*hlLH));
+  y += Math.min(hlLines.length,3)*hlLH + (isReel?46:34);
+
+  // Divider
+  ctx.fillStyle = accent; ctx.fillRect(padX, y, isReel?90:72, isReel?7:6);
+  y += isReel ? 44 : 34;
+
+  // Key points
+  const pts = (p.points && p.points.length ? p.points : ['Add key points, or tap Generate with AI']).slice(0,4);
+  const ptSize = isReel ? 36 : 30;
+  const numSize = isReel ? 34 : 28;
+  const rowGap = isReel ? 34 : 26;
+  const numBox = isReel ? 56 : 46;
+  ctx.textBaseline = 'top';
+  for (let i=0;i<pts.length;i++){
+    const numTop = y;
+    // number chip
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    (ctx.roundRect ? ctx.roundRect(padX, numTop, numBox, numBox, 8) : ctx.rect(padX, numTop, numBox, numBox));
+    ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = `800 ${numSize}px Poppins,Arial,sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(String(i+1), padX+numBox/2, numTop+numBox/2+2);
+    // point text
+    ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.fillStyle = '#E8EAED'; ctx.font = `500 ${ptSize}px Poppins,Arial,sans-serif`;
+    const tx = padX + numBox + (isReel?26:20);
+    const lines = wrapText(ctx, pts[i], W - tx - padX);
+    const lh = ptSize * 1.28;
+    lines.forEach((ln,li)=>ctx.fillText(ln, tx, numTop + li*lh + (numBox-ptSize)/2 - 2));
+    y = numTop + Math.max(numBox, lines.length*lh) + rowGap;
+  }
+
+  // Source line (bottom)
+  const srcY = H - (isReel ? 150 : 120);
+  ctx.fillStyle = '#8A9099'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.font = `600 ${isReel?26:22}px Poppins,Arial,sans-serif`;
+  ctx.fillText((p.source||'IOL').slice(0,80), padX, srcY);
+
+  // Logo (reuse template layer system)
+  const layers = getTemplateLayers(p.cat, isReel?'reel':'sq');
+  if (layers && layers.length > 0) drawTemplateLayersSync(ctx, layers, {breaking:false, W, H});
+}
+
 
 /* ════════════════════════════════════════════
    DRAW: LEISURE SQUARE
