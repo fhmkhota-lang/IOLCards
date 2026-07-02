@@ -124,12 +124,14 @@
 
           <!-- Carousel bar -->
           <div class="carousel-bar" id="carousel-bar" style="display:none">
-            <button class="cb-btn" id="c-prev">← Prev</button>
             <span class="cb-indicator" id="c-indicator"></span>
-            <button class="cb-btn" id="c-next">Next →</button>
-            <button class="cb-btn cb-add" id="c-add">+ Add</button>
-            <button class="cb-btn" id="c-del">✕ Del</button>
+            <div class="cb-actions">
+              <button class="cb-btn cb-add" id="c-add">+ Add page</button>
+              <button class="cb-btn" id="c-del">✕ Delete page</button>
+            </div>
           </div>
+          <!-- Stacked, clickable carousel pages -->
+          <div class="carousel-pages" id="carousel-pages" style="display:none"></div>
         </div>
 
         <!-- ── RIGHT: Controls ── -->
