@@ -61,6 +61,26 @@
       <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       <input class="search-input" id="search-input" type="text" placeholder="Search stories by headline or keyword…" autocomplete="off" spellcheck="false"/>
       <button class="search-clear" id="search-clear" title="Clear search">✕</button>
+      <button class="from-url-btn" id="from-url-toggle" title="Create card from any IOL article URL">＋ From URL</button>
+    </div>
+    <!-- From URL panel -->
+    <div class="from-url-panel" id="from-url-panel" style="display:none">
+      <div class="search-inner from-url-inner">
+        <input class="ctrl-input from-url-input" id="from-url-input" type="url" placeholder="Paste any IOL article URL…" autocomplete="off"/>
+        <select class="ctrl-input from-url-cat" id="from-url-cat">
+          <option value="news">News</option>
+          <option value="politics">Politics</option>
+          <option value="sport">Sport</option>
+          <option value="business">Business</option>
+          <option value="entertainment">Leisure</option>
+          <option value="technology">Technology</option>
+          <option value="motoring">Motoring</option>
+          <option value="travel">Travel</option>
+          <option value="opinion">Opinion</option>
+        </select>
+        <button class="ai-gen-btn from-url-go" id="from-url-go">Build Card</button>
+        <span class="from-url-status" id="from-url-status"></span>
+      </div>
     </div>
   </div>
   <main class="feed">

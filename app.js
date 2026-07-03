@@ -224,6 +224,62 @@ $id('search-input')?.addEventListener('input',function(){
   _searchTimer=setTimeout(()=>{curSearch=this.value;visible=PAGE_SZ;renderFeed();},220);
 });
 $id('search-clear')?.addEventListener('click',()=>{curSearch='';const si=$id('search-input');if(si)si.value='';visible=PAGE_SZ;renderFeed();});
+
+// From URL panel
+$id('from-url-toggle')?.addEventListener('click',()=>{
+  const panel=$id('from-url-panel');
+  if(!panel) return;
+  const open=panel.style.display==='none';
+  panel.style.display=open?'block':'none';
+  if(open) setTimeout(()=>$id('from-url-input')?.focus(),50);
+});
+$id('from-url-go')?.addEventListener('click', buildCardFromUrl);
+$id('from-url-input')?.addEventListener('keydown',e=>{if(e.key==='Enter')buildCardFromUrl();});
+
+async function buildCardFromUrl(){
+  const urlVal=($id('from-url-input')?.value||'').trim();
+  const cat=$id('from-url-cat')?.value||'news';
+  const status=$id('from-url-status');
+  const btn=$id('from-url-go');
+  if(!urlVal){if(status)status.textContent='Please paste an article URL first.';return;}
+  if(btn){btn.disabled=true;btn.textContent='Fetching…';}
+  if(status)status.textContent='';
+  try{
+    const r=await fetch(WORKER+'/fullimage?url='+encodeURIComponent(urlVal),{cache:'no-store'});
+    const data=await r.json();
+    if(!data.ok) throw new Error(data.error||'Could not fetch article');
+    // Detect cat from URL if possible
+    let detectedCat=cat;
+    if(/\/sport\//.test(urlVal)) detectedCat='sport';
+    else if(/\/business\//.test(urlVal)) detectedCat='business';
+    else if(/\/politics\//.test(urlVal)) detectedCat='politics';
+    else if(/\/opinion\//.test(urlVal)) detectedCat='opinion';
+    else if(/\/motoring\//.test(urlVal)) detectedCat='motoring';
+    else if(/\/travel\//.test(urlVal)) detectedCat='travel';
+    else if(/\/technology\//.test(urlVal)) detectedCat='technology';
+    else if(/\/entertainment\/|\/lifestyle\//.test(urlVal)) detectedCat='entertainment';
+    // Build a synthetic story and open designer
+    const story={
+      id:'url-'+Date.now(),
+      cat: detectedCat,
+      headline: data.title || 'Headline not found — edit above',
+      excerpt: data.desc || '',
+      source: data.source || 'IOL',
+      image: data.url || '',
+      url: urlVal,
+      time:'',
+    };
+    // Close panel and reset
+    const panel=$id('from-url-panel');if(panel)panel.style.display='none';
+    const inp=$id('from-url-input');if(inp)inp.value='';
+    if(status)status.textContent='';
+    openDesigner(story);
+  }catch(e){
+    if(status)status.textContent='Error: '+(e.message||'Could not load article');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Build Card';}
+  }
+}
 $id('load-more-btn')?.addEventListener('click',()=>{visible+=PAGE_SZ;renderFeed();});
 $id('refresh-btn')?.addEventListener('click',()=>loadStories(true));
 
