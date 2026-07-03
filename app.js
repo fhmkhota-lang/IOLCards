@@ -106,7 +106,7 @@ const PRELOADED = [
 ];
 
 /* ── State ── */
-let allStories = [], curFilter = 'all', curSub = 'all', visible = PAGE_SZ;
+let allStories = [], curFilter = 'all', curSub = 'all', curSearch = '', visible = PAGE_SZ;
 let doneIds = new Set();
 
 /* ── SUPABASE CONFIG ──
@@ -189,7 +189,7 @@ async function loadStories(refresh) {
 
 function renderFeed() {
   const grid=$id('stories-grid'); if(!grid)return;
-  const filt=curFilter==='all'?allStories:allStories.filter(s=>{
+  const filt0=curFilter==='all'?allStories:allStories.filter(s=>{
     if(curFilter==='leisure'){
       if(!LEISURE_CATS.includes(s.cat)) return false;
       if(curSub!=='all') return s.cat===curSub;
@@ -198,8 +198,10 @@ function renderFeed() {
     if(curFilter==='news') return NEWS_CATS.includes(s.cat);
     return s.cat===curFilter;
   });
+  const q=curSearch.toLowerCase().trim();
+  const filt=q?filt0.filter(s=>(s.headline||'').toLowerCase().includes(q)||(s.excerpt||'').toLowerCase().includes(q)):filt0;
   const vis=filt.slice(0,visible);
-  if(!vis.length){grid.innerHTML='<div class="grid-loading"><p>No stories in this category.</p></div>';if($id('load-more-row'))$id('load-more-row').style.display='none';return;}
+  if(!vis.length){grid.innerHTML=`<div class="grid-loading"><p>${q?'No stories match "'+q+'" — try a different keyword.':'No stories in this category.'}</p></div>`;if($id('load-more-row'))$id('load-more-row').style.display='none';return;}
   grid.innerHTML=vis.map(s=>`
     <div class="scard${doneIds.has(s.id)?' done':''}" data-id="${esc(s.id)}">
       <div class="scard-cat">${esc(LEISURE_BRAND.includes(s.cat)?'Leisure':(s.cat==='politics'?'News':s.cat))}</div>
@@ -214,8 +216,14 @@ function renderFeed() {
   const lmr=$id('load-more-row');if(lmr)lmr.style.display=filt.length>visible?'block':'none';
 }
 
-$id('cat-pills')?.addEventListener('click',e=>{const p=e.target.closest('.cpill');if(!p)return;document.querySelectorAll('.cpill').forEach(x=>x.classList.remove('active'));p.classList.add('active');curFilter=p.dataset.cat;curSub='all';const sub=$id('subcat-pills');if(sub){sub.hidden=curFilter!=='leisure';sub.querySelectorAll('.spill').forEach(x=>x.classList.toggle('active',x.dataset.sub==='all'));}visible=PAGE_SZ;renderFeed();});
+$id('cat-pills')?.addEventListener('click',e=>{const p=e.target.closest('.cpill');if(!p)return;document.querySelectorAll('.cpill').forEach(x=>x.classList.remove('active'));p.classList.add('active');curFilter=p.dataset.cat;curSub='all';curSearch='';const si=$id('search-input');if(si)si.value='';const sub=$id('subcat-pills');if(sub){sub.hidden=curFilter!=='leisure';sub.querySelectorAll('.spill').forEach(x=>x.classList.toggle('active',x.dataset.sub==='all'));}visible=PAGE_SZ;renderFeed();});
 $id('subcat-pills')?.addEventListener('click',e=>{const p=e.target.closest('.spill');if(!p)return;document.querySelectorAll('.spill').forEach(x=>x.classList.remove('active'));p.classList.add('active');curSub=p.dataset.sub;visible=PAGE_SZ;renderFeed();});
+let _searchTimer=null;
+$id('search-input')?.addEventListener('input',function(){
+  clearTimeout(_searchTimer);
+  _searchTimer=setTimeout(()=>{curSearch=this.value;visible=PAGE_SZ;renderFeed();},220);
+});
+$id('search-clear')?.addEventListener('click',()=>{curSearch='';const si=$id('search-input');if(si)si.value='';visible=PAGE_SZ;renderFeed();});
 $id('load-more-btn')?.addEventListener('click',()=>{visible+=PAGE_SZ;renderFeed();});
 $id('refresh-btn')?.addEventListener('click',()=>loadStories(true));
 

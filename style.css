@@ -136,6 +136,13 @@ body{background:var(--black);color:var(--white);font-family:var(--font);font-siz
 .ai-gen-btn:disabled{opacity:.6;cursor:default;}
 .info-hint{font-size:10.5px;color:var(--muted);margin-bottom:6px;}
 .info-points{width:100%;resize:vertical;line-height:1.5;min-height:110px;font-family:var(--font);}
+.search-bar{background:var(--bg2);border-bottom:1px solid var(--border2);padding:8px 0;}
+.search-inner{max-width:1400px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:8px;position:relative;}
+.search-icon{color:var(--muted);flex-shrink:0;}
+.search-input{flex:1;background:transparent;border:none;outline:none;color:var(--white);font-family:var(--font);font-size:13px;padding:4px 0;caret-color:var(--red);}
+.search-input::placeholder{color:var(--muted);}
+.search-clear{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:2px;transition:color .12s;flex-shrink:0;}
+.search-clear:hover{color:var(--white);}
 
 /* CONTROLS PANEL */
 .controls{background:var(--s1);overflow-y:auto;}
