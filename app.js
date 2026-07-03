@@ -48,7 +48,7 @@ const VERTICAL_LOGOS = {
   entertainment: VLOGO_LEISURE,
   lifestyle:     VLOGO_LEISURE,
   leisure:       VLOGO_LEISURE,
-  default:       VLOGO_NEWS,
+  opinion:       VLOGO_NEWS,
 };
 function getVerticalLogo(cat) {
   let key = (cat||'news').toLowerCase();
@@ -86,6 +86,7 @@ const CAT_CFG = {
   leisure:       { col:'#1A8FA0', lbl:'LEISURE',   style:'leisure'  },
   motoring:      { col:'#F26522', lbl:'MOTORING',  style:'standard' },
   travel:        { col:'#F5A623', lbl:'TRAVEL',    style:'standard' },
+  opinion:       { col:'#6B3FA0', lbl:'OPINION',   style:'standard' },
   default:       { col:'#E8192C', lbl:'NEWS',      style:'standard' },
 };
 function catCfg(c) { let k=(c||'').toLowerCase(); if(LEISURE_BRAND.includes(k)) k='leisure'; else if(k==='politics') k='news'; return CAT_CFG[k] || CAT_CFG.default; }
@@ -479,7 +480,7 @@ function firstSentence(txt){
   return s;
 }
 function buildShareText(){
-  const tagMap={news:'#SouthAfrica #NewsZA #IOL',politics:'#SAPoltics #SouthAfrica #IOL',sport:'#SportZA #SouthAfrica #IOL',business:'#BusinessZA #SouthAfrica #IOL',technology:'#TechZA #SouthAfrica #IOL',entertainment:'#Leisure #Entertainment #IOL',lifestyle:'#Leisure #Lifestyle #IOL',motoring:'#Motoring #SouthAfrica #IOL',travel:'#Travel #SouthAfrica #IOL'};
+  const tagMap={news:'#SouthAfrica #NewsZA #IOL',politics:'#SAPoltics #SouthAfrica #IOL',sport:'#SportZA #SouthAfrica #IOL',business:'#BusinessZA #SouthAfrica #IOL',technology:'#TechZA #SouthAfrica #IOL',entertainment:'#Leisure #Entertainment #IOL',lifestyle:'#Leisure #Lifestyle #IOL',motoring:'#Motoring #SouthAfrica #IOL',travel:'#Travel #SouthAfrica #IOL',opinion:'#Opinion #SouthAfrica #IOL'};
   const tags=tagMap[d.cat]||'#SouthAfrica #IOL';
   const url=d.shortUrl||d.storyUrl;
   const urlLine=url?'\n\n\uD83D\uDD17 '+url:'';
