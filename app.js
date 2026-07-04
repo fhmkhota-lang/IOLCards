@@ -176,7 +176,7 @@ async function loadStories(refresh) {
     const res=await fetch(WORKER+'/all?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(12000)});
     const data=await res.json();
     if(!data.ok||!data.stories||data.stories.length<3)throw new Error('empty');
-    allStories=data.stories.map((s,i)=>({id:'live-'+i,cat:s.category||'news',headline:s.headline,excerpt:s.excerpt||'',source:s.source||'IOL',time:relTime(s.pubDate),url:s.url||'https://www.iol.co.za',image:s.image||''}));
+    allStories=data.stories.map((s,i)=>({id:s.url||('live-'+i),cat:s.category||'news',headline:s.headline,excerpt:s.excerpt||'',source:s.source||'IOL',time:relTime(s.pubDate),url:s.url||'https://www.iol.co.za',image:s.image||''}));
     if(status){status.textContent=allStories.length+' stories · live';status.className='feed-status';}
   } catch(_) {
     allStories=[...PRELOADED];
