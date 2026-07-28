@@ -118,9 +118,12 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 async function loadDoneFromSupabase() {
   if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/done_stories?select=id`, {
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
-    });
+    // Only fetch URL-based IDs (id starts with 'https://') from the last 30 days
+    const since = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const res = await fetch(
+      `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&marked_at=gte.${since}&limit=2000`,
+      { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+    );
     const rows = await res.json();
     if (Array.isArray(rows)) { doneIds = new Set(rows.map(r => r.id)); renderFeed(); }
   } catch(e) { console.warn('Supabase load:', e); }
