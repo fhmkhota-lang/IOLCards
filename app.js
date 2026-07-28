@@ -126,14 +126,27 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 async function loadDoneFromSupabase() {
   if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
   try {
-    // Only fetch URL-based IDs (id starts with 'https://') from the last 30 days
+    // Fetch URL-based IDs only (last 30 days if marked_at exists, otherwise all URL-based)
     const since = new Date(Date.now() - 30*24*60*60*1000).toISOString();
-    const res = await fetch(
+    // Try with date filter first
+    let res = await fetch(
       `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&marked_at=gte.${since}&limit=2000`,
       { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
     );
-    const rows = await res.json();
-    if (Array.isArray(rows)) { doneIds = new Set(rows.map(r => normUrl(r.id))); renderFeed(); }
+    let rows = await res.json();
+    // If error (e.g. marked_at column missing), fall back to no date filter
+    if (!Array.isArray(rows)) {
+      res = await fetch(
+        `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&limit=2000`,
+        { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
+      );
+      rows = await res.json();
+    }
+    if (Array.isArray(rows)) {
+      // MERGE into existing set — never remove locally-added ticks
+      rows.forEach(r => doneIds.add(normUrl(r.id)));
+      renderFeed();
+    }
   } catch(e) { console.warn('Supabase load:', e); }
 }
 
