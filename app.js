@@ -207,8 +207,8 @@ async function loadStories(refresh) {
     allStories=[...PRELOADED];
     if(status){status.textContent=allStories.length+' stories · cached';status.className='feed-status';}
   }
+  await loadDoneFromSupabase();
   renderFeed();
-  loadDoneFromSupabase();
   if(btn)btn.classList.remove('spin');
 }
 
