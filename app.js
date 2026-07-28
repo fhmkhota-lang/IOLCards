@@ -130,14 +130,14 @@ async function loadDoneFromSupabase() {
     const since = new Date(Date.now() - 30*24*60*60*1000).toISOString();
     // Try with date filter first
     let res = await fetch(
-      `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&marked_at=gte.${since}&limit=2000`,
+      `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&marked_at=gte.${since}&order=marked_at.desc&limit=1000`,
       { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
     );
     let rows = await res.json();
     // If error (e.g. marked_at column missing), fall back to no date filter
     if (!Array.isArray(rows)) {
       res = await fetch(
-        `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&limit=2000`,
+        `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&order=marked_at.desc&limit=1000`,
         { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
       );
       rows = await res.json();
