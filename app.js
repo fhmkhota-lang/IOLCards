@@ -702,8 +702,8 @@ function drawStandardSq(ctx, p, cc) {
   // Kicker box top-left (hidden when Breaking News banner is on)
   if(!p.breaking) drawKickerBox(ctx, p.kicker, p.kickerColor, 48, 52, W-96);
 
-  // Text block
-  const logoZone=110;
+  // Text block — larger logoZone when breaking news is on (logo sits higher to avoid banner overlap)
+  const logoZone = p.breaking ? 160 : 110;
   drawTextBlock(ctx, p.headline, null, p.headlineColor, W, H, logoZone, p.textPos, 60, W-96);
 
   const sqLayers = getTemplateLayers(p.cat, 'sq');
@@ -853,11 +853,25 @@ function drawLeisureSq(ctx, p, cc) {
 
   // Headline (hot pink, bold, left-aligned, large)
   const padL=52, maxW=W-padL-48;
-  const textY=p.textPos==='top'?260:p.textPos==='bot'?520:390;
+  // When breaking news is on, push text below the banner (~104px) and shrink if needed
+  const breakingOffset = p.breaking ? 120 : 0;
+  const logoSafeBottom = p.breaking ? 200 : 140; // keep clear of logo at bottom
+  const baseTextY = p.textPos==='top' ? 260 : p.textPos==='bot' ? 520 : 390;
+  const textY = Math.max(baseTextY, 190 + breakingOffset);
   ctx.save();
-  ctx.font='900 68px Poppins,Arial Black,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  // Auto-shrink font if headline too long for available space
+  let fs = 68, hlLines, hlLH;
+  const maxAvailH = H - textY - logoSafeBottom;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    ctx.font = `900 ${fs}px Poppins,Arial Black,sans-serif`;
+    hlLines = wrapText(ctx, p.headline||'', maxW);
+    hlLH = 80;
+    if (hlLines.length * hlLH <= maxAvailH || fs <= 28) break;
+    fs = Math.max(28, Math.round(fs * 0.88));
+    hlLH = Math.round(fs * 1.18);
+  }
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
   ctx.fillStyle=p.headlineColor||'#F06BB5';
-  const hlLines=wrapText(ctx,p.headline||'',maxW), hlLH=80;
   hlLines.forEach((ln,i)=>ctx.fillText(ln,padL,textY+(i+1)*hlLH));
   // Rule line below headline
   const ruleY=textY+hlLines.length*hlLH+20;
@@ -931,13 +945,31 @@ function drawKickerBox(ctx, kicker, color, kx, ky, maxW) {
 
 function drawTextBlock(ctx, headline, caption, headlineColor, W, H, logoZone, textPos, fontSize, maxW) {
   ctx.save();
-  ctx.font=`800 ${fontSize}px Poppins,Arial Black,sans-serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
-  const hlLines=wrapText(ctx,headline||'',maxW), hlLH=Math.round(fontSize*1.22);
-  const totalH=hlLines.length*hlLH;
-  const topY=190, botY=H-logoZone-totalH-40, midY=(H-logoZone-totalH)/2+24;
-  const blockTop=textPos==='top'?topY:textPos==='bot'?botY:midY;
-  ctx.fillStyle=headlineColor||'#FFFFFF';
-  hlLines.forEach((ln,i)=>ctx.fillText(ln,W/2,blockTop+(i+1)*hlLH));
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+
+  // Auto-shrink font size until the text block fits within the available height
+  // Available height = H - logoZone - topY margin - bottom margin
+  const topY = 190;
+  const bottomMargin = 40;
+  const maxAvailH = H - logoZone - topY - bottomMargin;
+
+  let fs = fontSize;
+  let hlLines, hlLH, totalH;
+  // Step down font until it fits (min 28px)
+  for (let attempt = 0; attempt < 12; attempt++) {
+    ctx.font = `800 ${fs}px Poppins,Arial Black,sans-serif`;
+    hlLines = wrapText(ctx, headline || '', maxW);
+    hlLH = Math.round(fs * 1.22);
+    totalH = hlLines.length * hlLH;
+    if (totalH <= maxAvailH || fs <= 28) break;
+    fs = Math.max(28, Math.round(fs * 0.88));
+  }
+
+  const botY = H - logoZone - totalH - bottomMargin;
+  const midY = (H - logoZone - totalH) / 2 + 24;
+  const blockTop = textPos === 'top' ? topY : textPos === 'bot' ? botY : midY;
+  ctx.fillStyle = headlineColor || '#FFFFFF';
+  hlLines.forEach((ln, i) => ctx.fillText(ln, W / 2, blockTop + (i + 1) * hlLH));
   ctx.restore();
 }
 
