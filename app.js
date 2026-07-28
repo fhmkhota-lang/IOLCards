@@ -107,6 +107,14 @@ const PRELOADED = [
 
 /* ── State ── */
 let allStories = [], curFilter = 'all', curSub = 'all', curSearch = '', visible = PAGE_SZ;
+// Normalise a story URL for consistent done-ID matching.
+// Strips www., lowercases, removes trailing UUIDs like -xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+function normUrl(u) {
+  if (!u) return u;
+  return u.replace(/^https?:\/\/(www\.)?/, 'https://').toLowerCase()
+           .replace(/-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, '');
+}
+
 let doneIds = new Set();
 
 /* ── SUPABASE CONFIG ──
@@ -125,19 +133,20 @@ async function loadDoneFromSupabase() {
       { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` } }
     );
     const rows = await res.json();
-    if (Array.isArray(rows)) { doneIds = new Set(rows.map(r => r.id)); renderFeed(); }
+    if (Array.isArray(rows)) { doneIds = new Set(rows.map(r => normUrl(r.id))); renderFeed(); }
   } catch(e) { console.warn('Supabase load:', e); }
 }
 
 async function markDoneInSupabase(storyId, headline) {
-  doneIds.add(storyId);
+  const nid = normUrl(storyId);
+  doneIds.add(nid);
   if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
   const name = localStorage.getItem('iol_cards_user') || 'Team';
   try {
     await fetch(`${SUPA_URL}/rest/v1/done_stories`, {
       method: 'POST',
       headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'resolution=ignore-duplicates' },
-      body: JSON.stringify({ id: storyId, headline, marked_by: name })
+      body: JSON.stringify({ id: nid, headline, marked_by: name })
     });
   } catch(e) { console.warn('Supabase mark:', e); }
 }
@@ -179,7 +188,7 @@ async function loadStories(refresh) {
     const res=await fetch(WORKER+'/all?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(12000)});
     const data=await res.json();
     if(!data.ok||!data.stories||data.stories.length<3)throw new Error('empty');
-    allStories=data.stories.map((s,i)=>({id:s.url||('live-'+i),cat:s.category||'news',headline:s.headline,excerpt:s.excerpt||'',source:s.source||'IOL',time:relTime(s.pubDate),url:s.url||'https://www.iol.co.za',image:s.image||''}));
+    allStories=data.stories.map((s,i)=>({id:normUrl(s.url||('live-'+i)),cat:s.category||'news',headline:s.headline,excerpt:s.excerpt||'',source:s.source||'IOL',time:relTime(s.pubDate),url:s.url||'https://www.iol.co.za',image:s.image||''}));
     if(status){status.textContent=allStories.length+' stories · live';status.className='feed-status';}
   } catch(_) {
     allStories=[...PRELOADED];
