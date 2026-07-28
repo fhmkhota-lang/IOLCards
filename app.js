@@ -867,7 +867,7 @@ function drawLeisureSq(ctx, p, cc) {
   const padL=52, maxW=W-padL-48;
   // When breaking news is on, push text below the banner (~104px) and shrink if needed
   const breakingOffset = p.breaking ? 120 : 0;
-  const logoSafeBottom = p.breaking ? 200 : 140; // keep clear of logo at bottom
+  const logoSafeBottom = 140; // logo is always top-right, not bottom
   const baseTextY = p.textPos==='top' ? 260 : p.textPos==='bot' ? 520 : 390;
   const textY = Math.max(baseTextY, 190 + breakingOffset);
   ctx.save();
@@ -1015,12 +1015,8 @@ function drawTemplateLayersSync(ctx, layers, opts) {
     const aspect = iw / ih;
     const drawW = layer.w;
     const drawH = drawW / aspect;
-    // Breaking mode: move logo to middle-bottom of the card
+    // Logo stays in its configured position regardless of breaking news mode
     let lx = layer.x, ly = layer.y;
-    if (breaking && W && H) {
-      lx = (W - drawW) / 2;
-      ly = H - drawH - Math.round(H * 0.06);
-    }
     ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
