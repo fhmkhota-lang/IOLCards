@@ -1,0 +1,17 @@
+# Access-protected build of IOL Cards, on the WORK Cloudflare account.
+# The open "ioltester" worker (personal account) keeps serving the GitHub Pages
+# site untouched during the pilot.
+#
+# Serves the site (static assets) AND the API from one hostname, so a single
+# Cloudflare Access login covers every request.
+#
+# The /claude AI route needs an ANTHROPIC_KEY secret on THIS worker.
+# Deploy with:  ./deploy-secure.sh
+name = "iolcards-secure"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+workers_dev = true
+
+[assets]
+# Built by deploy-secure.sh from an explicit allowlist.
+directory = "./.deploy-public"

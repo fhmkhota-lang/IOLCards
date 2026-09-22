@@ -1,6 +1,11 @@
 'use strict';
 
-const WORKER = 'https://ioltester.fhmkhota.workers.dev';
+// On GitHub Pages the API lives on the separate, open ioltester worker (personal
+// account). On the Cloudflare Access-protected build the site is served BY the
+// worker, so the API is same-origin and the login cookie covers every request.
+const WORKER = /github\.io$|^localhost$|^127\./.test(location.hostname)
+  ? 'https://ioltester.fhmkhota.workers.dev'
+  : location.origin;
 const MODEL  = 'claude-sonnet-4-20250514';
 const PAGE_SZ = 12;
 
