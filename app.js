@@ -132,7 +132,7 @@ async function loadDoneFromSupabase() {
   if (!SUPA_URL || SUPA_URL === 'YOUR_SUPABASE_URL') return;
   try {
     // Fetch URL-based IDs only (last 30 days if marked_at exists, otherwise all URL-based)
-    const since = new Date(Date.now() - 30*24*60*60*1000).toISOString();
+    const since = new Date(Date.now() - 10*24*60*60*1000).toISOString();
     // Try with date filter first
     let res = await fetch(
       `${SUPA_URL}/rest/v1/done_stories?select=id&id=like.https%3A%2F%2F*&marked_at=gte.${since}&order=marked_at.desc&limit=1000`,
