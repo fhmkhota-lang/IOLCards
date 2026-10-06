@@ -1177,3 +1177,17 @@ if (!localStorage.getItem('iol_cards_user')) {
 loadStories(false);
 // Poll Supabase every 30s so team ticks stay in sync
 setInterval(loadDoneFromSupabase, 30000);
+
+/* ── Visit logging ────────────────────────────────────────────────────────
+   One ping per page load, sent to the Title Cards worker because it is the
+   one we can deploy to. Silent on failure — never blocks the tool.       */
+function logVisit(){
+  try{
+    fetch('https://ioltitles.faheem-khota.workers.dev/visit',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      keepalive:true,
+      body:JSON.stringify({tool:'IOL Cards',pub:'',name:localStorage.getItem('iol_cards_user')||''})
+    }).catch(()=>{});
+  }catch(e){}
+}
+logVisit();
