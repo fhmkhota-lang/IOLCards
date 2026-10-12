@@ -67,7 +67,7 @@ export default {
           },
           cf: { cacheTtl: 1800, cacheEverything: true }
         });
-        if (!res.ok) return j({ok:false, error:'HTTP '+res.status}, 502);
+        if (!res.ok) return await fromFeedFallback(articleUrl, 'HTTP '+res.status);
         const html = await res.text();
         let imgUrl = '';
         // og:image (highest quality, usually 1200px+)
@@ -96,9 +96,9 @@ export default {
             return j({ok:true, url: imgUrl});
           }
         }
-        return j({ok:false, error:'No og:image found'}, 404);
+        return await fromFeedFallback(articleUrl, 'No og:image found');
       } catch(e) {
-        return j({ok:false, error: String(e.message)}, 500);
+        return await fromFeedFallback(articleUrl, String(e.message));
       }
     }
 
@@ -218,3 +218,60 @@ function cdata(x,t){const r=new RegExp('<'+t+'[^>]*>(?:<!\\[CDATA\\[([\\s\\S]*?)
 function tag(x,t){const r=new RegExp('<'+t+'[^>]*>([\\s\\S]*?)<\\/'+t+'>','i'),m=x.match(r);return m?m[1].trim():'';}
 function strip(h){return h.replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#039;/g,"'").replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();}
 function j(data,status=200){return new Response(JSON.stringify(data),{status,headers:{...CORS,'Content-Type':'application/json','Cache-Control':'no-store, max-age=0'}});}
+
+/* ── From URL fallback ────────────────────────────────────────────────────
+   iol.co.za article pages now answer 403 to anything that isn't a real
+   browser, so the page can't be scraped from a Worker. Recover the headline
+   and image from the RSS feed instead, which is public and unblocked, by
+   matching the pasted link against the section feed. If the story is older
+   than the feed window, fall back to the URL slug so the journalist still
+   gets a usable headline to edit rather than an empty card.               */
+function normArt(u){
+  return String(u||'').toLowerCase()
+    .replace(/^https?:\/\/(www\.)?/,'')
+    .replace(/[?#].*$/,'')
+    .replace(/\/$/,'')
+    .replace(/-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,'');
+}
+function titleFromSlug(u){
+  try{
+    let last = new URL(u).pathname.replace(/\/$/,'').split('/').pop() || '';
+    last = last.replace(/-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,'');
+    last = last.replace(/-/g,' ').trim();
+    if(!last) return '';
+    return last.charAt(0).toUpperCase()+last.slice(1);
+  }catch(e){ return ''; }
+}
+async function fromFeedFallback(articleUrl, why){
+  const want = normArt(articleUrl);
+  let section = '';
+  try{ section = (new URL(articleUrl).pathname.split('/').filter(Boolean)[0]||'').toLowerCase(); }catch(e){}
+  const tryFeeds = [];
+  if (section) tryFeeds.push('https://rss.iol.io/iol/'+section, 'https://iol.co.za/rss/extended/iol/'+section+'/');
+  tryFeeds.push('https://rss.iol.io/iol/news');
+  for (const f of tryFeeds){
+    try{
+      const r = await fetch(f, {headers:{'User-Agent':'Mozilla/5.0 (compatible; IOL Cards/1.0)','Accept':'application/rss+xml,text/xml'}, cf:{cacheTtl:300}});
+      if(!r.ok) continue;
+      const xml = await r.text();
+      const items = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || [];
+      for (const it of items){
+        const lm = it.match(/<link[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/i);
+        if(!lm || normArt(lm[1]) !== want) continue;
+        const tm = it.match(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/i);
+        const dm = it.match(/<(?:dc:abstract|description)[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/(?:dc:abstract|description)>/i);
+        const im = it.match(/<(?:media:content|media:thumbnail|enclosure)[^>]*url=["\']([^"\']+)/i);
+        let img = im ? im[1] : '';
+        if (img && img.includes('image-prod.iol.co.za')){
+          img = img.replace(/&amp;/g,'&')
+                   .replace(/(image-prod\.iol\.co\.za\/[^/]+\/)\d+/, '$12000')
+                   .replace(/resize=(\d+)x(\d+)/, (m,w,h)=>'resize=1920x'+Math.round((Number(h)/Number(w))*1920));
+        }
+        return j({ok:true, url: img, title: strip(tm?tm[1]:''), desc: strip(dm?dm[1]:''), source:'IOL', via:'feed'});
+      }
+    }catch(e){ /* try the next feed */ }
+  }
+  const t = titleFromSlug(articleUrl);
+  if (t) return j({ok:true, url:'', title:t, desc:'', source:'IOL', via:'slug', note:why});
+  return j({ok:false, error: why}, 502);
+}
