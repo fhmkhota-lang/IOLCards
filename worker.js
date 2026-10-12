@@ -6,13 +6,13 @@
  * POST /claude            → Anthropic API proxy (ANTHROPIC_KEY secret)
  */
 const CORS = {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Allow-Headers':'Content-Type'};
-const SECTIONS = ['news','sport','business','entertainment','technology','motoring','lifestyle','travel'];
+const SECTIONS = ['news','sport','business','entertainment','technology','motoring','lifestyle','travel','opinion'];
 // Extra sub-feeds merged into a section to deepen the pool (more Load More).
 // Kept conservative: only paths confirmed to exist. Politics folds into News.
 const SUBFEEDS = {
   news: ['news','politics'],
 };
-const LABELS = {news:'IOL News',sport:'IOL Sport',business:'Business Report',entertainment:'Tonight',technology:'IOL Tech',motoring:'IOL Motoring',lifestyle:'IOL Lifestyle'};
+const LABELS = {news:'IOL News',sport:'IOL Sport',business:'Business Report',entertainment:'Tonight',technology:'IOL Tech',motoring:'IOL Motoring',lifestyle:'IOL Lifestyle',travel:'IOL Travel',opinion:'IOL Opinion'};
 
 export default {
   async fetch(request, env) {
@@ -69,6 +69,18 @@ export default {
         });
         if (!res.ok) return await fromFeedFallback(articleUrl, 'HTTP '+res.status);
         const html = await res.text();
+        // Headline + standfirst. These were never returned before, which is why
+        // From URL produced a card with the right photo and "Headline not found".
+        const ogT = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i)
+                 || html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:title["']/i)
+                 || html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const ogD = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i)
+                 || html.match(/<meta[^>]*content=["']([^"']*)["'][^>]*property=["']og:description["']/i)
+                 || html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+        let artTitle = strip(ogT ? ogT[1] : '');
+        const artDesc = strip(ogD ? ogD[1] : '');
+        // page <title> often carries a site suffix
+        artTitle = artTitle.replace(/\s*[|\u2013-]\s*IOL( News)?\s*$/i,'').trim();
         let imgUrl = '';
         // og:image (highest quality, usually 1200px+)
         const ogImg = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
@@ -91,11 +103,12 @@ export default {
             const u = new URL(imgUrl);
             ['impolicy','wid','hei','fit','op_usm','qlt','fmt','$staticlink$'].forEach(p => u.searchParams.delete(p));
             u.searchParams.set('wid', '1200');
-            return j({ok:true, url: u.toString()});
+            return j({ok:true, url: u.toString(), title: artTitle, desc: artDesc, source:'IOL', via:'page'});
           } catch(e) {
-            return j({ok:true, url: imgUrl});
+            return j({ok:true, url: imgUrl, title: artTitle, desc: artDesc, source:'IOL', via:'page'});
           }
         }
+        if (artTitle) return j({ok:true, url:'', title: artTitle, desc: artDesc, source:'IOL', via:'page'});
         return await fromFeedFallback(articleUrl, 'No og:image found');
       } catch(e) {
         return await fromFeedFallback(articleUrl, String(e.message));
@@ -216,7 +229,23 @@ function parseRSS(xml, section, src) {
 }
 function cdata(x,t){const r=new RegExp('<'+t+'[^>]*>(?:<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>|([\\s\\S]*?))<\\/'+t+'>','i'),m=x.match(r);return m?(m[1]!==undefined?m[1]:m[2]||'').trim():'';}
 function tag(x,t){const r=new RegExp('<'+t+'[^>]*>([\\s\\S]*?)<\\/'+t+'>','i'),m=x.match(r);return m?m[1].trim():'';}
-function strip(h){return h.replace(/<[^>]+>/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#039;/g,"'").replace(/&nbsp;/g,' ').replace(/\s+/g,' ').trim();}
+function strip(h){
+  let s = String(h==null?'':h).replace(/<[^>]+>/g,' ');
+  const ENT={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',rsquo:'\u2019',lsquo:'\u2018',
+    ldquo:'\u201C',rdquo:'\u201D',ndash:'\u2013',mdash:'\u2014',hellip:'\u2026'};
+  // Decode twice: IOL's og: tags are hex-encoded and sometimes double-encoded,
+  // which is what produced &#x27; in headlines.
+  for(let i=0;i<2;i++){
+    s = s.replace(/&([a-zA-Z]+);/g,(m,n)=>ENT[n.toLowerCase()]!==undefined?ENT[n.toLowerCase()]:m)
+         .replace(/&#x([0-9a-fA-F]+);/g,(m,x)=>{try{return String.fromCodePoint(parseInt(x,16));}catch(e){return m;}})
+         .replace(/&#(\d+);/g,(m,n)=>{try{return String.fromCodePoint(parseInt(n,10));}catch(e){return m;}});
+  }
+  for(const [bad,good] of [['\u00e2\u20ac\u2122','\u2019'],['\u00e2\u20ac\u009d','\u201D'],
+    ['\u00e2\u20ac\u0153','\u201C'],['\u00e2\u20ac\u201c','\u2013'],['\u00c2\u00a0',' '],['\u00c2','']])
+    s = s.split(bad).join(good);
+  return s.replace(/\u0092/g,'\u2019').replace(/\u0093/g,'\u201C').replace(/\u0094/g,'\u201D')
+          .replace(/\uFFFD/g,'').replace(/\s+/g,' ').trim();
+}
 function j(data,status=200){return new Response(JSON.stringify(data),{status,headers:{...CORS,'Content-Type':'application/json','Cache-Control':'no-store, max-age=0'}});}
 
 /* ── From URL fallback ────────────────────────────────────────────────────
