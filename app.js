@@ -886,6 +886,25 @@ let _leisureLogoReady = false;
 _leisureLogo.onload = () => { _leisureLogoReady = true; };
 _leisureLogo.src = VLOGO_LEISURE;
 
+// Corner tile artwork. VLOGO_LEISURE is the badge plus the decorative rules
+// either side, which is why it read as "lines next to the logo" and why the
+// lockup came out tiny. Crop to the badge alone, which is already dark-on-
+// light and sits cleanly on the white tile. Built once, then cached.
+let _leisureTileCanvas = null;
+function getLeisureTile(){
+  if (_leisureTileCanvas) return _leisureTileCanvas;
+  if (!_leisureLogoReady || !_leisureLogo.width) return null;
+  const SX = 294, SY = 6, SW = 148, SH = 148;   // measured badge bounds
+  const c = document.createElement('canvas');
+  c.width = SW; c.height = SH;
+  const x = c.getContext('2d');
+  // The badge is already dark-on-light inside, so it needs no recolouring —
+  // it sits on the white tile as-is.
+  x.drawImage(_leisureLogo, SX, SY, SW, SH, 0, 0, SW, SH);
+  _leisureTileCanvas = c;
+  return c;
+}
+
 function drawLeisureBlocky(ctx, p, W, H, isReel){
   const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
   ctx.fillStyle = '#060608'; ctx.fillRect(0, 0, W, H);
@@ -995,28 +1014,39 @@ function drawLeisureBlocky(ctx, p, W, H, isReel){
   fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,0.92)');
   ctx.fillStyle = fg; ctx.fillRect(0, H - SCRIM, W, SCRIM);
 
-  if (_leisureLogoReady && _leisureLogo.width){
-    const pad = isReel ? 64 : 52;
-    const lw = isReel ? 460 : 370;
-    const lh2 = Math.round(_leisureLogo.height * lw / _leisureLogo.width);
-    const lx = W - pad - lw;                       // bottom-right
-    const ly = H - (isReel ? 96 : 68) - lh2;
+  // Logo sits bottom-right on a white rounded tile. No rules anywhere.
+  const tile = getLeisureTile();
+  if (tile){
+    const edge = isReel ? 60 : 48;
+    const lw = isReel ? 150 : 120;
+    const lh2 = Math.round(tile.height * lw / tile.width);
+    const ip = isReel ? 22 : 18;                    // inner padding
+    const tw = lw + ip * 2, th = lh2 + ip * 2;
+    const tx = W - edge - tw, ty = H - edge - th;
+    const r = isReel ? 26 : 20;
 
-    // one white rule, full width, sitting above the logo
-    const ruleY = Math.round(ly - (isReel ? 34 : 26));
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-    ctx.lineWidth = isReel ? 4 : 3;
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = isReel ? 30 : 24;
+    ctx.shadowOffsetY = 5;
+    ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.moveTo(0, ruleY); ctx.lineTo(W, ruleY);
-    ctx.stroke();
+    if (ctx.roundRect) {
+      ctx.roundRect(tx, ty, tw, th, r);
+    } else {                                  // older canvas: build the path
+      ctx.moveTo(tx + r, ty);
+      ctx.arcTo(tx + tw, ty,      tx + tw, ty + th, r);
+      ctx.arcTo(tx + tw, ty + th, tx,      ty + th, r);
+      ctx.arcTo(tx,      ty + th, tx,      ty,      r);
+      ctx.arcTo(tx,      ty,      tx + tw, ty,      r);
+      ctx.closePath();
+    }
+    ctx.fill();
     ctx.restore();
 
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.75)';
-    ctx.shadowBlur = isReel ? 26 : 20;
-    ctx.shadowOffsetY = 4;
-    ctx.drawImage(_leisureLogo, lx, ly, lw, lh2);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(tile, tx + ip, ty + ip, lw, lh2);
     ctx.restore();
   }
 }
