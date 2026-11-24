@@ -1006,15 +1006,16 @@ function drawLeisureBlocky(ctx, p, W, H, isReel){
   fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,0.92)');
   ctx.fillStyle = fg; ctx.fillRect(0, H - SCRIM, W, SCRIM);
 
-  // Logo sits bottom-right on a white rounded tile. No rules anywhere.
+  // Logo sits bottom-centre on a white rounded tile. No rules anywhere.
   const tile = getLeisureTile();
   if (tile){
     const edge = isReel ? 60 : 48;
-    const lw = isReel ? 300 : 240;
+    const lw = isReel ? 256 : 204;   // keeps the tile width even, so it centres exactly
     const lh2 = Math.round(tile.height * lw / tile.width);
-    const ip = isReel ? 22 : 18;                    // inner padding
+    const ip = isReel ? 20 : 16;                    // inner padding
     const tw = lw + ip * 2, th = lh2 + ip * 2;
-    const tx = W - edge - tw, ty = H - edge - th;
+    const tx = Math.round((W - tw) / 2);            // centred
+    const ty = H - edge - th;
     const r = isReel ? 26 : 20;
 
     ctx.save();
