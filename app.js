@@ -886,23 +886,15 @@ let _leisureLogoReady = false;
 _leisureLogo.onload = () => { _leisureLogoReady = true; };
 _leisureLogo.src = VLOGO_LEISURE;
 
-// Corner tile artwork. VLOGO_LEISURE is the badge plus the decorative rules
-// either side, which is why it read as "lines next to the logo" and why the
-// lockup came out tiny. Crop to the badge alone, which is already dark-on-
-// light and sits cleanly on the white tile. Built once, then cached.
-let _leisureTileCanvas = null;
+// Corner tile artwork: the supplied IOL Leisure lockup, dark on white.
+// VLOGO_LEISURE is the badge plus the decorative rules either side, which is
+// why it read as "lines next to the logo", so it is not used here.
+const _leisureTile = new Image();
+let _leisureTileReady = false;
+_leisureTile.onload = () => { _leisureTileReady = true; };
+_leisureTile.src = 'iol-leisure-tile.png';
 function getLeisureTile(){
-  if (_leisureTileCanvas) return _leisureTileCanvas;
-  if (!_leisureLogoReady || !_leisureLogo.width) return null;
-  const SX = 294, SY = 6, SW = 148, SH = 148;   // measured badge bounds
-  const c = document.createElement('canvas');
-  c.width = SW; c.height = SH;
-  const x = c.getContext('2d');
-  // The badge is already dark-on-light inside, so it needs no recolouring —
-  // it sits on the white tile as-is.
-  x.drawImage(_leisureLogo, SX, SY, SW, SH, 0, 0, SW, SH);
-  _leisureTileCanvas = c;
-  return c;
+  return (_leisureTileReady && _leisureTile.width) ? _leisureTile : null;
 }
 
 function drawLeisureBlocky(ctx, p, W, H, isReel){
@@ -1018,7 +1010,7 @@ function drawLeisureBlocky(ctx, p, W, H, isReel){
   const tile = getLeisureTile();
   if (tile){
     const edge = isReel ? 60 : 48;
-    const lw = isReel ? 150 : 120;
+    const lw = isReel ? 300 : 240;
     const lh2 = Math.round(tile.height * lw / tile.width);
     const ip = isReel ? 22 : 18;                    // inner padding
     const tw = lw + ip * 2, th = lh2 + ip * 2;

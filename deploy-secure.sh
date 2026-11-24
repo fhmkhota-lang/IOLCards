@@ -10,7 +10,7 @@ mkdir -p "$OUT"
 
 # Allowlist: only what the browser needs. Nothing else gets published.
 cp index.html app.js style.css admin.html "$OUT/"
-cp iol-logo-dark.png iol-logo-white.png iol-logo-alpha.png "iol leisure logo.png" "$OUT/"
+cp iol-logo-dark.png iol-logo-white.png iol-logo-alpha.png iol-leisure-tile.png "iol leisure logo.png" "$OUT/"
 
 echo "Publishing:"
 ( cd "$OUT" && find . -type f | sort )
