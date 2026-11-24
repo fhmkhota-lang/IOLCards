@@ -943,27 +943,27 @@ function drawLeisureBlocky(ctx, p, W, H, isReel){
   vg.addColorStop(0, 'rgba(0,0,0,0.78)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, veilH);
 
-  // ── kicker / breaking block, centred ──
+  // ── kicker: leisure cards carry no kicker. The BREAKING NEWS block is kept
+  //    so the toggle still does something visible. ──
   const kfs = isReel ? 56 : 48;
-  const kick = (p.breaking ? 'BREAKING NEWS' : (p.kicker || 'LEISURE')).toUpperCase();
-  ctx.save();
-  ctx.font = `800 ${kfs}px Poppins,Arial Black,sans-serif`;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  const kw = ctx.measureText(kick).width;
-  const kpx = isReel ? 40 : 34, kpy = isReel ? 26 : 22;
-  const kx = (W - (kw + kpx * 2)) / 2, ky = isReel ? 150 : 92;
-  const khh = kfs + kpy * 2;
+  const kpy = isReel ? 26 : 22;
+  const topPad = isReel ? 150 : 92;
+  let khh = 0, ky = topPad;
   if (p.breaking){
+    const kick = 'BREAKING NEWS';
+    ctx.save();
+    ctx.font = `800 ${kfs}px Poppins,Arial Black,sans-serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    const kw = ctx.measureText(kick).width;
+    const kpx = isReel ? 40 : 34;
+    const kx = (W - (kw + kpx * 2)) / 2;
+    khh = kfs + kpy * 2;
     ctx.fillStyle = rgba(LEISURE_TEAL, 1);
     ctx.fillRect(kx, ky, kw + kpx * 2, khh);
     ctx.fillStyle = '#08080A';
-  } else {
-    ctx.strokeStyle = rgba(LEISURE_TEAL, 1); ctx.lineWidth = 4;
-    ctx.strokeRect(kx, ky, kw + kpx * 2, khh);
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(kick, kx + kpx, ky + kpy + kfs * 0.80);
+    ctx.restore();
   }
-  ctx.fillText(kick, kx + kpx, ky + kpy + kfs * 0.80);
-  ctx.restore();
 
   // ── headline, centred, uppercase, auto-shrunk ──
   const maxW = W - (isReel ? 130 : 120);
@@ -996,9 +996,22 @@ function drawLeisureBlocky(ctx, p, W, H, isReel){
   ctx.fillStyle = fg; ctx.fillRect(0, H - SCRIM, W, SCRIM);
 
   if (_leisureLogoReady && _leisureLogo.width){
-    const lw = isReel ? 780 : 620;
+    const pad = isReel ? 64 : 52;
+    const lw = isReel ? 460 : 370;
     const lh2 = Math.round(_leisureLogo.height * lw / _leisureLogo.width);
-    const lx = (W - lw) / 2, ly = H - (isReel ? 104 : 72) - lh2;
+    const lx = W - pad - lw;                       // bottom-right
+    const ly = H - (isReel ? 96 : 68) - lh2;
+
+    // one white rule, full width, sitting above the logo
+    const ruleY = Math.round(ly - (isReel ? 34 : 26));
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = isReel ? 4 : 3;
+    ctx.beginPath();
+    ctx.moveTo(0, ruleY); ctx.lineTo(W, ruleY);
+    ctx.stroke();
+    ctx.restore();
+
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.75)';
     ctx.shadowBlur = isReel ? 26 : 20;
