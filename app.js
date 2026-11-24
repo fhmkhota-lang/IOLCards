@@ -856,88 +856,170 @@ function drawInfographic(ctx, p, cc, W, H, isReel){
 
 
 /* ════════════════════════════════════════════
-   DRAW: LEISURE SQUARE
+   LEISURE: blocky design (square + reel)
+   Photo feathered in below a mosaic of brand-colour squares, centred kicker
+   that becomes a filled BREAKING NEWS block, headline above the photo, logo
+   at the foot. Shares one renderer for both formats.
+   ════════════════════════════════════════════ */
+const LEISURE_TEAL = [26, 143, 160];      // #1A8FA0
+const LEISURE_MID  = [18, 100, 114];
+const LEISURE_DEEP = [10, 58, 68];
+
+// Deterministic PRNG so every card gets the same mosaic, not a random one.
+function _mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+const _alphaLogo = new Image();
+let _alphaLogoReady = false;
+_alphaLogo.onload = () => { _alphaLogoReady = true; };
+_alphaLogo.src = 'iol-logo-alpha.png';
+
+// The leisure masthead, as used by the previous leisure card.
+const _leisureLogo = new Image();
+let _leisureLogoReady = false;
+_leisureLogo.onload = () => { _leisureLogoReady = true; };
+_leisureLogo.src = VLOGO_LEISURE;
+
+function drawLeisureBlocky(ctx, p, W, H, isReel){
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  ctx.fillStyle = '#060608'; ctx.fillRect(0, 0, W, H);
+
+  // ── mosaic: concentrated at the edges, fixed arrangement ──
+  const CELL = isReel ? 84 : 72;
+  const rnd = _mulberry32(20261124);
+  for (let gy = 0; gy < H; gy += CELL){
+    for (let gx = 0; gx < W; gx += CELL){
+      const cx = gx / W, cy = gy / H;
+      const side = cx < 0.30 ? (1 - cx / 0.30) : (cx > 0.70 ? (cx - 0.70) / 0.30 : 0);
+      const w = Math.max(Math.min(1, Math.max(side, 0)),
+                         Math.max(0, 1 - cy / 0.24) * 0.9,
+                         Math.max(0, (cy - 0.82) / 0.18) * 0.9);
+      if (w <= 0.05 || rnd() > w * 0.8) continue;
+      const a = Math.min(0.80, 0.16 + 0.64 * w * (0.35 + rnd() * 0.65));
+      const r = rnd();
+      const col = r < 0.30 ? LEISURE_TEAL : (r < 0.55 ? LEISURE_MID : LEISURE_DEEP);
+      ctx.fillStyle = rgba(col, a);
+      ctx.fillRect(gx, gy, CELL - 3, CELL - 3);
+    }
+  }
+  ctx.strokeStyle = 'rgba(26,143,160,0.10)'; ctx.lineWidth = 1;
+  for (let gx = 0; gx < W; gx += CELL){ ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,H); ctx.stroke(); }
+  for (let gy = 0; gy < H; gy += CELL){ ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(W,gy); ctx.stroke(); }
+
+  // ── photo, feathered into the background ──
+  const photoTop = Math.round(H * (isReel ? 0.30 : 0.33));
+  const off = document.createElement('canvas');
+  off.width = W; off.height = H - photoTop;
+  const octx = off.getContext('2d');
+  drawPhoto(octx, p, off.width, off.height,
+            isReel ? p.reelImgX : p.sqImgX,
+            isReel ? p.reelImgY : p.sqImgY,
+            (isReel ? p.reelImgScale : p.sqImgScale) || 1);
+  // fade the sides and top of the photo out
+  octx.globalCompositeOperation = 'destination-out';
+  const FE = isReel ? 170 : 150;
+  let gl = octx.createLinearGradient(0, 0, FE, 0);
+  gl.addColorStop(0, 'rgba(0,0,0,1)'); gl.addColorStop(1, 'rgba(0,0,0,0)');
+  octx.fillStyle = gl; octx.fillRect(0, 0, FE, off.height);
+  gl = octx.createLinearGradient(W, 0, W - FE, 0);
+  gl.addColorStop(0, 'rgba(0,0,0,1)'); gl.addColorStop(1, 'rgba(0,0,0,0)');
+  octx.fillStyle = gl; octx.fillRect(W - FE, 0, FE, off.height);
+  const TF = isReel ? 300 : 260;
+  gl = octx.createLinearGradient(0, 0, 0, TF);
+  gl.addColorStop(0, 'rgba(0,0,0,1)'); gl.addColorStop(1, 'rgba(0,0,0,0)');
+  octx.fillStyle = gl; octx.fillRect(0, 0, W, TF);
+  octx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(off, 0, photoTop);
+
+  // ── veil behind the top text ──
+  const veilH = H * (isReel ? 0.42 : 0.46);
+  let vg = ctx.createLinearGradient(0, 0, 0, veilH);
+  vg.addColorStop(0, 'rgba(0,0,0,0.78)'); vg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, veilH);
+
+  // ── kicker / breaking block, centred ──
+  const kfs = isReel ? 56 : 48;
+  const kick = (p.breaking ? 'BREAKING NEWS' : (p.kicker || 'LEISURE')).toUpperCase();
+  ctx.save();
+  ctx.font = `800 ${kfs}px Poppins,Arial Black,sans-serif`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  const kw = ctx.measureText(kick).width;
+  const kpx = isReel ? 40 : 34, kpy = isReel ? 26 : 22;
+  const kx = (W - (kw + kpx * 2)) / 2, ky = isReel ? 150 : 92;
+  const khh = kfs + kpy * 2;
+  if (p.breaking){
+    ctx.fillStyle = rgba(LEISURE_TEAL, 1);
+    ctx.fillRect(kx, ky, kw + kpx * 2, khh);
+    ctx.fillStyle = '#08080A';
+  } else {
+    ctx.strokeStyle = rgba(LEISURE_TEAL, 1); ctx.lineWidth = 4;
+    ctx.strokeRect(kx, ky, kw + kpx * 2, khh);
+    ctx.fillStyle = '#FFFFFF';
+  }
+  ctx.fillText(kick, kx + kpx, ky + kpy + kfs * 0.80);
+  ctx.restore();
+
+  // ── headline, centred, uppercase, auto-shrunk ──
+  const maxW = W - (isReel ? 130 : 120);
+  let fs = isReel ? 86 : 74, lines, lh;
+  const maxLines = isReel ? 5 : 3;
+  for (let i = 0; i < 24; i++){
+    ctx.font = `800 ${fs}px Poppins,Arial Black,sans-serif`;
+    lines = wrapText(ctx, (p.headline || '').toUpperCase(), maxW);
+    lh = Math.round(fs * 1.16);
+    if (lines.length <= maxLines || fs <= 34) break;
+    fs -= 2;
+  }
+  ctx.save();
+  ctx.font = `800 ${fs}px Poppins,Arial Black,sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  let y = ky + khh + (isReel ? 56 : 44);
+  lines.slice(0, maxLines).forEach(ln => {
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillText(ln, W / 2 + 3, y + fs + 4);
+    ctx.fillStyle = p.headlineColor || '#FFFFFF';
+    ctx.fillText(ln, W / 2, y + fs);
+    y += lh;
+  });
+  ctx.restore();
+
+  // ── footer scrim + logo ──
+  const SCRIM = isReel ? 420 : 300;
+  const fg = ctx.createLinearGradient(0, H - SCRIM, 0, H);
+  fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, 'rgba(0,0,0,0.92)');
+  ctx.fillStyle = fg; ctx.fillRect(0, H - SCRIM, W, SCRIM);
+
+  if (_leisureLogoReady && _leisureLogo.width){
+    const lw = isReel ? 780 : 620;
+    const lh2 = Math.round(_leisureLogo.height * lw / _leisureLogo.width);
+    const lx = (W - lw) / 2, ly = H - (isReel ? 104 : 72) - lh2;
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.75)';
+    ctx.shadowBlur = isReel ? 26 : 20;
+    ctx.shadowOffsetY = 4;
+    ctx.drawImage(_leisureLogo, lx, ly, lw, lh2);
+    ctx.restore();
+  }
+}
+
+/* ════════════════════════════════════════════
+   DRAW: LEISURE SQUARE (1080x1080)
    ════════════════════════════════════════════ */
 function drawLeisureSq(ctx, p, cc) {
-  const W=SQ, H=SQ;
-  // Dark mauve/purple background
-  ctx.fillStyle='#1A0E18'; ctx.fillRect(0,0,W,H);
-
-  // Photo
-  drawPhoto(ctx, p, W, H, p.sqImgX, p.sqImgY, p.sqImgScale);
-
-  // Heavy purple-tinted gradient bottom half
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'rgba(20,8,18,0)'); g.addColorStop(0.3,'rgba(20,8,18,0.28)');
-  g.addColorStop(0.52,'rgba(20,8,18,0.78)'); g.addColorStop(1,'rgba(20,8,18,0.97)');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-
-  if(p.breaking) drawBreakingBanner(ctx, W, false, true);
-
-  // IOL Leisure logo top-left
-  const sqLayers = getTemplateLayers(p.cat, 'sq');
-  if (sqLayers && sqLayers.length > 0) drawTemplateLayersSync(ctx, sqLayers, {breaking:p.breaking, W, H});
-
-  // Headline (hot pink, bold, left-aligned, large)
-  const padL=52, maxW=W-padL-48;
-  // When breaking news is on, push text below the banner (~104px) and shrink if needed
-  const breakingOffset = p.breaking ? 120 : 0;
-  const logoSafeBottom = 140; // logo is always top-right, not bottom
-  const baseTextY = p.textPos==='top' ? 260 : p.textPos==='bot' ? 520 : 390;
-  const textY = Math.max(baseTextY, 190 + breakingOffset);
-  ctx.save();
-  // Auto-shrink font if headline too long for available space
-  let fs = 68, hlLines, hlLH;
-  const maxAvailH = H - textY - logoSafeBottom;
-  for (let attempt = 0; attempt < 10; attempt++) {
-    ctx.font = `900 ${fs}px Poppins,Arial Black,sans-serif`;
-    hlLines = wrapText(ctx, p.headline||'', maxW);
-    hlLH = 80;
-    if (hlLines.length * hlLH <= maxAvailH || fs <= 28) break;
-    fs = Math.max(28, Math.round(fs * 0.88));
-    hlLH = Math.round(fs * 1.18);
-  }
-  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-  ctx.fillStyle=p.headlineColor||'#F06BB5';
-  hlLines.forEach((ln,i)=>ctx.fillText(ln,padL,textY+(i+1)*hlLH));
-  // Rule line below headline
-  const ruleY=textY+hlLines.length*hlLH+20;
-  ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=2.5;
-  ctx.beginPath(); ctx.moveTo(padL,ruleY); ctx.lineTo(padL+220,ruleY); ctx.stroke();
-  ctx.restore();
+  drawLeisureBlocky(ctx, p, SQ, SQ, false);
 }
 
 /* ════════════════════════════════════════════
    DRAW: LEISURE REEL (1080x1920)
    ════════════════════════════════════════════ */
 function drawLeisureReel(ctx, p, cc) {
-  const W=RW, H=RH;
-  ctx.fillStyle='#1A0E18'; ctx.fillRect(0,0,W,H);
-  drawPhoto(ctx, p, W, H, p.reelImgX, p.reelImgY, p.reelImgScale);
-
-  const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,'rgba(20,8,18,0)'); g.addColorStop(0.25,'rgba(20,8,18,0.20)');
-  g.addColorStop(0.5,'rgba(20,8,18,0.72)'); g.addColorStop(1,'rgba(20,8,18,0.97)');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-
-  if(p.breaking) drawBreakingBanner(ctx, W, true, true);
-
-  // IOL Leisure logo top-right (bigger on tall format)
-  const reelLayers = getTemplateLayers(p.cat, 'reel');
-  if (reelLayers && reelLayers.length > 0) drawTemplateLayersSync(ctx, reelLayers, {breaking:p.breaking, W, H});
-
-  // Headline
-  const padL=56, maxW=W-padL-56;
-  const rp2=p.reelTextPos||'mid';const textY=rp2==='top'?420:rp2==='bot'?1100:760;
-  ctx.save();
-  ctx.font='900 80px Poppins,Arial Black,sans-serif'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
-  ctx.fillStyle=p.headlineColor||'#F06BB5';
-  const hlLines=wrapText(ctx,p.headline||'',maxW), hlLH=96;
-  hlLines.forEach((ln,i)=>ctx.fillText(ln,padL,textY+(i+1)*hlLH));
-  const ruleY=textY+hlLines.length*hlLH+24;
-  ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.lineWidth=3;
-  ctx.beginPath(); ctx.moveTo(padL,ruleY); ctx.lineTo(padL+260,ruleY); ctx.stroke();
-  ctx.restore();
+  drawLeisureBlocky(ctx, p, RW, RH, true);
 }
 
 /* ════════════════════════════════════════════

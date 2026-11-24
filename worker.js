@@ -183,21 +183,53 @@ async function fetchSection(section) {
 // Fetch a single feed slug, trying a few host/path variants. `tagAs` is the
 // fallback category used when a story's URL doesn't reveal its own section.
 async function fetchFeed(slug, tagAs) {
-  const HDRS = {'User-Agent':'Mozilla/5.0 (compatible; IOL Cards/1.0)','Accept':'application/rss+xml,text/xml'};
+  // Browser-like headers: iol.co.za rate-limits bare Worker requests.
+  const HDRS = {
+    'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Accept':'application/rss+xml,application/xml;q=0.9,text/xml;q=0.8,*/*;q=0.7',
+    'Accept-Language':'en-ZA,en;q=0.9',
+    'Referer':'https://iol.co.za/'
+  };
   const paths = [
     'https://iol.co.za/rss/extended/iol/'+slug+'/',
+    'https://www.iol.co.za/rss/extended/iol/'+slug+'/',
     'https://iol.co.za/rss/iol/'+slug,
-    'https://rss.iol.io/iol/'+slug,
   ];
+  // iol.co.za intermittently refuses requests coming from Cloudflare Workers
+  // (429/403) while the same request from a normal connection succeeds. That
+  // emptied every section at once. Each good response is kept at the edge for
+  // 24h, and when upstream refuses we serve the last good copy rather than
+  // returning nothing.
+  const cache = caches.default;
+  const cacheKey = new Request('https://feed-cache.iolcards/v1/' + slug);
   let lastErr = null;
+
   for (const u of paths) {
     try {
-      const res = await fetch(u, {headers:HDRS, cf:{cacheTtl:60}});
-      if (!res.ok) { lastErr = new Error('Feed '+res.status); continue; }
-      const stories = parseRSS(await res.text(), tagAs, LABELS[tagAs]||'IOL');
-      if (stories.length) return stories;
-    } catch(e) { lastErr = e; }
+      const res = await fetch(u, { headers: HDRS, cf: { cacheTtl: 300, cacheEverything: true } });
+      if (!res.ok) { lastErr = new Error('Feed ' + res.status); continue; }
+      const xml = await res.text();
+      const stories = parseRSS(xml, tagAs, LABELS[tagAs] || 'IOL');
+      if (stories.length) {
+        try {
+          await cache.put(cacheKey, new Response(xml, {
+            headers: { 'Content-Type': 'text/xml', 'Cache-Control': 'max-age=86400' }
+          }));
+        } catch (e) { /* caching is best-effort */ }
+        return stories;
+      }
+    } catch (e) { lastErr = e; }
   }
+
+  // Upstream refused — fall back to the last good copy.
+  try {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      const stories = parseRSS(await cached.text(), tagAs, LABELS[tagAs] || 'IOL');
+      if (stories.length) return stories;
+    }
+  } catch (e) { /* fall through */ }
+
   if (lastErr) throw lastErr;
   return [];
 }
